@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.srozga.gluqalc_api.common.AuthProvider;
 import pl.srozga.gluqalc_api.common.UserRole;
+import pl.srozga.gluqalc_api.component.email.EmailVerificationTokenService;
 import pl.srozga.gluqalc_api.dto.request.LoginRequest;
 import pl.srozga.gluqalc_api.dto.response.TokenResponse;
 import pl.srozga.gluqalc_api.entity.User;
@@ -34,6 +35,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final EmailVerificationTokenService emailVerificationTokenService;
 
     @Value("${app.google.client-id}")
     private String googleClientId;
@@ -46,7 +48,7 @@ public class AuthService {
         if (!passwordEncoder.matches(loginRequest.password(), user.getPasswordHash()))
             throw new ApplicationAuthenticationException("Invalid email or password");
         if (!user.isEnabled())
-            throw new ApplicationAuthenticationException("User account is disabled");
+            throw new ApplicationAuthenticationException("User account is not verified");
         if (user.isLocked())
             throw new ApplicationAuthenticationException("User account is locked");
 
@@ -87,7 +89,7 @@ public class AuthService {
             if (user.isLocked())
                 throw new TokenAuthenticationException("User account is locked");
             if (!user.isEnabled())
-                throw new TokenAuthenticationException("User account is disabled");
+                throw new TokenAuthenticationException("User account is not verified");
 
             return generateTokensForUser(user);
         } catch (IOException | GeneralSecurityException e) {
@@ -96,12 +98,27 @@ public class AuthService {
         }
     }
 
+    @Transactional
     public void logout(String authHeader, UUID userId) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String jwt = authHeader.substring(7);
             jwtService.invalidateJwtToken(jwt);
         }
         refreshTokenService.deleteRefreshTokenByUserId(userId);
+    }
+
+    @Transactional
+    public void verifyEmail(String token) {
+        UUID userId = emailVerificationTokenService.validateToken(token);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApplicationAuthenticationException("User not found"));
+
+        if (user.isEnabled())
+            return;
+
+        user.setEnabled(true);
+        userRepository.save(user);
+        emailVerificationTokenService.deleteToken(token);
     }
 
     private TokenResponse generateTokensForUser(User user) {

@@ -41,4 +41,5 @@ dependencies {
 	implementation("com.auth0:java-jwt:4.5.0")
 	implementation("com.google.api-client:google-api-client:2.8.1")
 	implementation("com.google.http-client:google-http-client-gson:2.1.0")
+	implementation("org.springframework.boot:spring-boot-starter-mail")
 }

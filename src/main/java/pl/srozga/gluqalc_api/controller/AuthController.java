@@ -7,10 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import pl.srozga.gluqalc_api.dto.request.GoogleLoginRequest;
-import pl.srozga.gluqalc_api.dto.request.LoginRequest;
-import pl.srozga.gluqalc_api.dto.request.RefreshTokenRequest;
-import pl.srozga.gluqalc_api.dto.request.RegisterRequest;
+import pl.srozga.gluqalc_api.dto.request.*;
 import pl.srozga.gluqalc_api.dto.response.TokenResponse;
 import pl.srozga.gluqalc_api.dto.response.UserResponse;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
@@ -54,5 +51,11 @@ public class AuthController {
             @AuthenticationPrincipal AuthUser authUser
     ) {
         authService.logout(authHeader, authUser.id());
+    }
+
+    @PostMapping("/verify")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        authService.verifyEmail(request.code());
     }
 }
