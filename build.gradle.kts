@@ -30,7 +30,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-redis")
 	implementation("org.springframework.boot:spring-boot-starter-flyway")
 	implementation("org.springframework.boot:spring-boot-starter-security")
-	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.flywaydb:flyway-database-postgresql")
 	compileOnly("org.projectlombok:lombok")
 	runtimeOnly("org.postgresql:postgresql")
@@ -39,5 +39,6 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
 	implementation("com.auth0:java-jwt:4.5.0")
-	implementation("com.google.auth:google-auth-library-oauth2-http:1.42.1")
+	implementation("com.google.api-client:google-api-client:2.8.1")
+	implementation("com.google.http-client:google-http-client-gson:2.1.0")
 }

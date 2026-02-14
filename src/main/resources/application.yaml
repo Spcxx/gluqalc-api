@@ -1,3 +1,13 @@
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-time-ms: 900000
+    refresh-expiration-ms: 604800000
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
+  rate-limiter:
+    max-requests: 100
+    time-window: 60
 spring:
   application:
     name: GluQalc API
@@ -36,11 +46,9 @@ logging:
     org.springframework: INFO
     org.hibernate.SQL: DEBUG
     org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: ERROR
-jwt:
-  secret: ${JWT_SECRET}
 springdoc:
   api-docs:
-    enabled: false
+    enabled: true
   swagger-ui:
     enabled: true
     operations-sorter: alpha
