@@ -54,7 +54,7 @@ public class RefreshTokenService {
             throw new TokenAuthenticationException("Refresh token is invalid or expired");
 
         UUID userId = UUID.fromString(userIdStr);
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new TokenAuthenticationException("User associated with this token does not exist"));
 
         if (!user.isEnabled()) {

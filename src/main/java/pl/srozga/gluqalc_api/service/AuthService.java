@@ -42,7 +42,7 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest loginRequest) {
-        User user = userRepository.findByEmail(loginRequest.email())
+        User user = userRepository.findByEmailAndDeletedFalse(loginRequest.email())
                 .orElseThrow(() -> new ApplicationAuthenticationException("Invalid email or password"));
 
         if (!passwordEncoder.matches(loginRequest.password(), user.getPasswordHash()))
@@ -82,6 +82,7 @@ public class AuthService {
                         .roles(Set.of(UserRole.USER))
                         .enabled(true)
                         .locked(false)
+                        .deleted(false)
                         .build();
                 return userRepository.save(newUser);
             });
@@ -90,6 +91,8 @@ public class AuthService {
                 throw new TokenAuthenticationException("User account is locked");
             if (!user.isEnabled())
                 throw new TokenAuthenticationException("User account is not verified");
+            if (user.isDeleted())
+                throw new TokenAuthenticationException("User account not found");
 
             return generateTokensForUser(user);
         } catch (IOException | GeneralSecurityException e) {
@@ -110,7 +113,7 @@ public class AuthService {
     @Transactional
     public void verifyEmail(String token) {
         UUID userId = emailVerificationTokenService.validateToken(token);
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new ApplicationAuthenticationException("User not found"));
 
         if (user.isEnabled())

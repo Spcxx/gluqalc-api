@@ -54,6 +54,9 @@ public class User {
     @Column(nullable = false)
     @Builder.Default
     private boolean locked = false;
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean deleted = false;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
