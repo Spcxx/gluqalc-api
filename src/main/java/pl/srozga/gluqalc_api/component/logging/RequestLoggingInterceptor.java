@@ -7,6 +7,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+import pl.srozga.gluqalc_api.utils.IpResolver;
 
 import java.util.Objects;
 
@@ -29,10 +30,10 @@ public class RequestLoggingInterceptor implements HandlerInterceptor {
 
         if (ex != null) {
             log.error("{} -> {} | STATUS: {} | TIME: {} ms | IP: {} | EXCEPTION: {}",
-                    request.getMethod(), request.getRequestURI(), response.getStatus(), duration, request.getRemoteAddr(), ex.getMessage(), ex);
+                    request.getMethod(), request.getRequestURI(), response.getStatus(), duration, IpResolver.getClientIp(request), ex.getMessage(), ex);
         } else {
             log.info("{} -> {} | STATUS: {} | TIME: {} ms | IP: {}",
-                    request.getMethod(), request.getRequestURI(), response.getStatus(), duration, request.getRemoteAddr());
+                    request.getMethod(), request.getRequestURI(), response.getStatus(), duration,IpResolver.getClientIp(request));
         }
     }
 }

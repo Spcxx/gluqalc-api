@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 import pl.srozga.gluqalc_api.dto.internal.ApiError;
+import pl.srozga.gluqalc_api.utils.IpResolver;
 
 import java.io.IOException;
 
@@ -24,7 +25,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
-        String ip = request.getRemoteAddr();
+        String ip = IpResolver.getClientIp(request);
         RateLimitService.RateLimitResponse result = rateLimitService.checkRateLimit(ip);
 
         if (result.allowed()) {
