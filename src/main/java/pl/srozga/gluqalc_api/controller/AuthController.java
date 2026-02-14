@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pl.srozga.gluqalc_api.dto.request.GoogleLoginRequest;
@@ -28,6 +29,7 @@ public class AuthController {
         return authService.login(loginRequest);
     }
 
+    @PreAuthorize("isAnonymous()")
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse register(@Valid @RequestBody RegisterRequest registerRequest) {
@@ -44,6 +46,7 @@ public class AuthController {
         return authService.loginWithGoogle(request.idToken());
     }
 
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(
