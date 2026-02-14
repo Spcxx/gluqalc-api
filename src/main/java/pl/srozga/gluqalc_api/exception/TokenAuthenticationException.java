@@ -1,6 +1,8 @@
 package pl.srozga.gluqalc_api.exception;
 
-public class TokenAuthenticationException extends RuntimeException {
+import org.springframework.security.core.AuthenticationException;
+
+public class TokenAuthenticationException extends AuthenticationException {
     public TokenAuthenticationException(String message) {
         super(message);
     }

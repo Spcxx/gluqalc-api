@@ -6,7 +6,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 import org.springframework.stereotype.Component;
-import pl.srozga.gluqalc_api.exception.TokenAuthenticationException;
 
 @Component
 public class JwtAuthenticationConverter implements AuthenticationConverter {
@@ -16,7 +15,7 @@ public class JwtAuthenticationConverter implements AuthenticationConverter {
         if (header == null || header.isEmpty())
             return null;
         if (!header.startsWith("Bearer "))
-            throw new TokenAuthenticationException("Unsupported authorization header format");
+            return null;
 
         String token = header.substring(7);
         return JwtAuthenticationToken.unauthenticated(token);

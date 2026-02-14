@@ -6,9 +6,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -84,6 +87,17 @@ public class GlobalExceptionHandler {
         return handleException(HttpStatus.FORBIDDEN, "Access denied");
     }
 
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<ApiError> handleAuthorizationDeniedException() {
+        return handleException(HttpStatus.FORBIDDEN, "Access denied");
+    }
+
+    @ExceptionHandler(InsufficientAuthenticationException.class)
+    public ResponseEntity<ApiError> handleInsufficientAuthenticationException() {
+        return handleException(HttpStatus.UNAUTHORIZED, "Access denied");
+    }
+
+
     @ExceptionHandler(ApplicationAuthenticationException.class)
     public ResponseEntity<ApiError> handleAuthenticationException(ApplicationAuthenticationException e) {
         return handleException(HttpStatus.UNAUTHORIZED, e.getMessage());
@@ -102,6 +116,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiError> handleCustomNotFoundException(NotFoundException e) {
         return handleException(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiError> handleMissingRequestHeaderException(MissingRequestHeaderException e) {
+        String message = String.format("Missing required header: '%s'", e.getHeaderName());
+        return handleException(HttpStatus.BAD_REQUEST, message);
     }
 
     private ResponseEntity<ApiError> handleException(HttpStatus status, Object message) {
