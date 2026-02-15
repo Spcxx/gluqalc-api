@@ -16,6 +16,7 @@ import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -77,11 +78,20 @@ public class JwtService {
 
             String userId = decodedJWT.getSubject();
             String email = decodedJWT.getClaim(EMAIL_CLAIM).asString();
-            Set<UserRole> roles = decodedJWT.getClaim(ROLES_CLAIM).asList(String.class).stream().map(UserRole::valueOf).collect(java.util.stream.Collectors.toSet());
+            Set<UserRole> roles = decodedJWT.getClaim(ROLES_CLAIM).asList(String.class).stream().map(roleName -> {
+                try {
+                    return UserRole.valueOf(roleName);
+                } catch (IllegalArgumentException e) {
+                    log.warn("Unknown role in JWT token: {}", roleName);
+                    return null;
+                }
+            })
+                    .filter(Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toSet());
 
             return new AuthUser(UUID.fromString(userId), email, roles, null, true, false);
         } catch (JWTVerificationException e) {
-            log.error("JWT verification failed: {}", e.getMessage());
+            log.debug("JWT verification failed: {}", e.getMessage());
             throw new TokenAuthenticationException("Invalid JWT token");
         }
     }
