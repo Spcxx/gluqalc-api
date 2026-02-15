@@ -1,18 +1,21 @@
 package pl.srozga.gluqalc_api.utils;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.NonNull;
+import lombok.experimental.UtilityClass;
 
+@UtilityClass
 public class IpResolver {
-    public static String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip))
-            ip = request.getHeader("X-Real-IP");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip))
-            ip = request.getRemoteAddr();
+    public static String getClientIp(@NonNull HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+
+        if (ip == null)
+            return "unknown";
 
         if ("0:0:0:0:0:0:0:1".equals(ip))
             ip = "127.0.0.1";
 
-        return ip != null ? ip.contains(",") ? ip.split(",")[0].trim() : ip : "unknown";
+
+        return ip;
     }
 }
