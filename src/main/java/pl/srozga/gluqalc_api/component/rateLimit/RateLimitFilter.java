@@ -21,7 +21,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final RateLimitService rateLimitService;
 
     private static final String HEADER_LIMIT_REMAINING = "X-Rate-Limit-Remaining";
-    private static final String HEADER_RETRY_AFTER = "X-Rate-Limit-Retry-After";
+    private static final String HEADER_RETRY_AFTER = "Retry-After";
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
