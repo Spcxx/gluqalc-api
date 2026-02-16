@@ -7,56 +7,54 @@ import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import pl.srozga.gluqalc_api.common.AuthProvider;
-import pl.srozga.gluqalc_api.common.UserRole;
 
+import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
+@Table(name = "product_changes")
 @Getter
 @Setter
 @EntityListeners(AuditingEntityListener.class)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User {
+public class ProductChange {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @JdbcTypeCode(SqlTypes.UUID)
     @Column(updatable = false, nullable = false)
     private UUID id;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+    @Column(name = "product_id", nullable = false)
+    private UUID productId;
 
-    private String passwordHash;
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @Enumerated(EnumType.STRING)
-    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "role", nullable = false)
-    @Builder.Default
-    private Set<UserRole> roles = new HashSet<>();
+    private String name;
+    private String brand;
+    private String barcode;
 
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AuthProvider provider = AuthProvider.LOCAL;
-
-    @Builder.Default
-    @Column(nullable = false)
-    private boolean enabled = true;
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean locked = false;
-    @Builder.Default
-    @Column(nullable = false)
-    private boolean deleted = false;
+    @Column(precision = 10, scale = 1)
+    private BigDecimal energyKcal;
+    @Column(precision = 10, scale = 1)
+    private BigDecimal carbohydrates;
+    @Column(precision = 10, scale = 1)
+    private BigDecimal sugars;
+    @Column(precision = 10, scale = 1)
+    private BigDecimal fat;
+    @Column(precision = 10, scale = 1)
+    private BigDecimal saturatedFat;
+    @Column(precision = 10, scale = 1)
+    private BigDecimal protein;
+    @Column(precision = 10, scale = 1)
+    private BigDecimal fiber;
+    @Column(precision = 10, scale = 2)
+    private BigDecimal salt;
+    private Integer glycemicIndex;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
@@ -64,11 +62,14 @@ public class User {
     @LastModifiedDate
     @Column(nullable = false)
     private Instant updatedAt;
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
 
     @Override
     public final boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof User other)) return false;
+        if (!(o instanceof ProductChange other)) return false;
         return getId() != null && Objects.equals(getId(), other.getId());
     }
 

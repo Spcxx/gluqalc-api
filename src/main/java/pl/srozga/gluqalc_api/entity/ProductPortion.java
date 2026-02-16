@@ -42,6 +42,9 @@ public class ProductPortion {
     @Column(nullable = false)
     private boolean published;
 
+    @Column(nullable = false)
+    private UUID createdBy;
+
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -50,15 +53,14 @@ public class ProductPortion {
     private Instant updatedAt;
 
     @Override
-    public boolean equals(Object o) {
+    public final boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        ProductPortion productPortion = (ProductPortion) o;
-        return id != null && Objects.equals(id, productPortion.id);
+        if (!(o instanceof ProductPortion other)) return false;
+        return getId() != null && Objects.equals(getId(), other.getId());
     }
 
     @Override
-    public int hashCode() {
+    public final int hashCode() {
         return getClass().hashCode();
     }
 }

@@ -4,20 +4,27 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.srozga.gluqalc_api.common.UserRole;
+import pl.srozga.gluqalc_api.component.product.ProductMapper;
+import pl.srozga.gluqalc_api.component.product.ProductMerger;
+import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.request.AddProductRequest;
 import pl.srozga.gluqalc_api.dto.request.UpdateProductRequest;
-import pl.srozga.gluqalc_api.dto.response.ProductAdminResponse;
-import pl.srozga.gluqalc_api.dto.response.ProductNutritionResponse;
-import pl.srozga.gluqalc_api.dto.response.ProductPortionAdminResponse;
+import pl.srozga.gluqalc_api.dto.response.*;
+import pl.srozga.gluqalc_api.entity.PortionChange;
 import pl.srozga.gluqalc_api.entity.Product;
+import pl.srozga.gluqalc_api.entity.ProductChange;
 import pl.srozga.gluqalc_api.entity.ProductPortion;
 import pl.srozga.gluqalc_api.exception.ConflictException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
+import pl.srozga.gluqalc_api.repository.PortionChangeRepository;
+import pl.srozga.gluqalc_api.repository.ProductChangeRepository;
 import pl.srozga.gluqalc_api.repository.ProductPortionRepository;
 import pl.srozga.gluqalc_api.repository.ProductRepository;
+import pl.srozga.gluqalc_api.security.principal.AuthUser;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -28,61 +35,67 @@ import java.util.function.Consumer;
 public class ProductService {
     private final ProductRepository productRepository;
     private final ProductPortionRepository productPortionRepository;
+    private final ProductChangeRepository productChangeRepository;
+    private final PortionChangeRepository portionChangeRepository;
+    private final ProductMerger productMerger;
+    private final ProductMapper productMapper;
 
     @Transactional
-    public ProductAdminResponse createProduct(AddProductRequest productRequest) {
-        if (productRequest.barcode() != null && productRepository.existsByBarcodeAndDeletedFalse(productRequest.barcode()))
-            throw new ConflictException("Product with this barcode already exists");
+    public ProductDto createProduct(UUID adminId, AddProductRequest productRequest) {
+        Product savedProduct = createProductInternal(productRequest, true, adminId);
+        log.info("Created new published product: {} by admin {}", savedProduct.getId(), adminId);
+        return productMapper.toDto(savedProduct);
+    }
 
-        validateMacroRelations(
-                productRequest.carbohydrates(), productRequest.sugars(),
-                productRequest.fat(), productRequest.saturatedFat()
-        );
-
-        Product product = Product.builder()
-                .name(productRequest.name())
-                .brand(productRequest.brand())
-                .barcode(productRequest.barcode())
-                .energyKcal(productRequest.energyKcal())
-                .carbohydrates(productRequest.carbohydrates())
-                .fat(productRequest.fat())
-                .protein(productRequest.protein())
-                .sugars(productRequest.sugars())
-                .saturatedFat(productRequest.saturatedFat())
-                .fiber(productRequest.fiber())
-                .salt(productRequest.salt())
-                .glycemicIndex(productRequest.glycemicIndex())
-                .published(true)
-                .deleted(false)
-                .build();
-
-        addPortionToProduct(product, "100g", new BigDecimal("100.0"));
-        if (productRequest.portions() != null && !productRequest.portions().isEmpty())
-            productRequest.portions().forEach(p -> addPortionToProduct(product, p.name(), p.weightInGrams()));
-
-        Product savedProduct = productRepository.save(product);
-        log.info("Created new product: {}", savedProduct.getName());
-        return mapToResponse(savedProduct);
-
+    @Transactional
+    public ProductDto proposeProduct(UUID authorId, AddProductRequest productRequest) {
+        Product savedProduct = createProductInternal(productRequest, false, authorId);
+        log.info("Created new proposed product: {} by user {}", savedProduct.getId(), authorId);
+        return productMapper.toDto(savedProduct);
     }
 
     @Transactional(readOnly = true)
-    public ProductAdminResponse getProductById(UUID id) {
+    public ProductDto getProductSmart(UUID productId, AuthUser user) {
+        Product product;
+        if (user.roles().contains(UserRole.ADMIN))
+            product = productRepository.findByIdAndDeletedFalse(productId)
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+        else
+            product = productRepository.findByIdVisibleToUser(productId, user.id())
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+
+        return assembleSmartProduct(product, user.id());
+    }
+
+    @Transactional(readOnly = true)
+    public ProductDto getProductSmartByBarcode(String barcode, AuthUser user) {
+        Product product;
+        if (user.roles().contains(UserRole.ADMIN))
+            product = productRepository.findByBarcodeAndDeletedFalse(barcode)
+                    .orElseThrow(() -> new NotFoundException("Product not found"));
+        else
+            product = productRepository.findByBarcodeVisibleToUser(barcode, user.id())
+                    .orElseThrow(() -> new NotFoundException("Product not found"));
+
+        return assembleSmartProduct(product, user.id());
+    }
+
+    @Transactional(readOnly = true)
+    public ProductDto getProductById(UUID id) {
         Product product = productRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
-        return mapToResponse(product);
+        return productMapper.toDto(product);
     }
 
     @Transactional(readOnly = true)
-    public ProductAdminResponse getProductByBarcode(String barcode) {
+    public ProductDto getProductByBarcode(String barcode) {
         Product product = productRepository.findByBarcodeAndDeletedFalse(barcode)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
-        return mapToResponse(product);
+        return productMapper.toDto(product);
     }
 
-
     @Transactional
-    public ProductAdminResponse updateProduct(UUID id, UpdateProductRequest request) {
+    public ProductDto updateProduct(UUID id, UpdateProductRequest request) {
         Product product = productRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
 
@@ -112,7 +125,59 @@ public class ProductService {
 
         Product updatedProduct = productRepository.save(product);
         log.info("Updated product: {}", updatedProduct.getId());
-        return mapToResponse(updatedProduct);
+        return productMapper.toDto(updatedProduct);
+    }
+
+    @Transactional
+    public void proposeProductChange(UUID productId, UUID userId, UpdateProductRequest request) {
+        Product product = productRepository.findByIdVisibleToUser(productId, userId)
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+
+         BigDecimal effectiveCarbs = request.carbohydrates() != null ? request.carbohydrates() : product.getCarbohydrates();
+         BigDecimal effectiveSugars = request.sugars() != null ? request.sugars() : product.getSugars();
+         BigDecimal effectiveFat = request.fat() != null ? request.fat() : product.getFat();
+         BigDecimal effectiveSatFat = request.saturatedFat() != null ? request.saturatedFat() : product.getSaturatedFat();
+
+        validateMacroRelations(effectiveCarbs, effectiveSugars, effectiveFat, effectiveSatFat);
+
+        ProductChange change = productChangeRepository.findByProductIdAndUserIdAndDeletedFalse(productId, userId)
+                .orElse(ProductChange.builder()
+                        .productId(productId)
+                        .userId(userId)
+                        .deleted(false)
+                        .createdAt(Instant.now())
+                        .build());
+
+        change.setUpdatedAt(Instant.now());
+
+        updateIfPresent(request.name(), change::setName);
+        updateIfPresent(request.brand(), change::setBrand);
+        updateIfPresent(request.barcode(), change::setBarcode);
+        updateIfPresent(request.energyKcal(), change::setEnergyKcal);
+        updateIfPresent(request.carbohydrates(), change::setCarbohydrates);
+        updateIfPresent(request.sugars(), change::setSugars);
+        updateIfPresent(request.fat(), change::setFat);
+        updateIfPresent(request.saturatedFat(), change::setSaturatedFat);
+        updateIfPresent(request.protein(), change::setProtein);
+        updateIfPresent(request.fiber(), change::setFiber);
+        updateIfPresent(request.salt(), change::setSalt);
+        updateIfPresent(request.glycemicIndex(), change::setGlycemicIndex);
+
+        log.info("User {} proposed change for product {}. Change: {}", userId, productId, change.getId());
+        productChangeRepository.save(change);
+    }
+
+    @Transactional
+    public void approveWholeProduct(UUID adminId, UUID id) {
+        Product product = productRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+        if (product.isPublished())
+            throw new IllegalStateException("Product is already approved");
+
+        product.setPublished(true);
+        product.getPortions().forEach(p -> p.setPublished(true));
+        Product approvedProduct = productRepository.save(product);
+        log.info("Product {} approved by admin {}", approvedProduct.getId(), adminId);
     }
 
     @Transactional
@@ -125,16 +190,28 @@ public class ProductService {
     }
 
     @Transactional
-    public ProductAdminResponse addPortion(UUID productId, String name, BigDecimal weight) {
+    public ProductDto addPortion(UUID productId, String name, BigDecimal weight, AuthUser user) {
         Product product = productRepository.findByIdAndDeletedFalse(productId)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
-        addPortionToProduct(product, name, weight);
+        addPortionToProduct(product, name, weight, product.isPublished(), user.id());
         Product savedProduct = productRepository.save(product);
-        return mapToResponse(savedProduct);
+        log.info("Product {} added by admin {}", savedProduct.getId(), user.id());
+        return productMapper.toDto(savedProduct);
     }
 
     @Transactional
-    public ProductAdminResponse updatePortion(UUID portionId, String name, BigDecimal weight) {
+    public void addPortionUser(UUID productId, String name, BigDecimal weight, AuthUser user) {
+        Product product = productRepository.findByIdVisibleToUser(productId, user.id())
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+
+        addPortionToProduct(product, name, weight, false, user.id());
+
+        productRepository.save(product);
+        log.info("Private portion added to product {} by user {}", productId, user.id());
+    }
+
+    @Transactional
+    public ProductDto updatePortion(UUID portionId, String name, BigDecimal weight) {
         ProductPortion portion = productPortionRepository.findById(portionId)
                 .orElseThrow(() -> new NotFoundException("Portion not found"));
         if (portion.getProduct().isDeleted())
@@ -146,8 +223,40 @@ public class ProductService {
             portion.setWeightInGrams(weight);
 
         productPortionRepository.save(portion);
+        log.info("Updated portion: {}", portionId);
 
-        return mapToResponse(portion.getProduct());
+        return productMapper.toDto(portion.getProduct());
+    }
+
+    @Transactional
+    public void updatePortionUser(UUID portionId, String name, BigDecimal weight, AuthUser user) {
+        ProductPortion portion = productPortionRepository.findById(portionId)
+                .orElseThrow(() -> new NotFoundException("Portion not found"));
+
+        boolean canEditDirectly = portion.getCreatedBy().equals(user.id()) && !portion.isPublished();
+
+        if (canEditDirectly) {
+            updateIfPresent(name, portion::setName);
+            updateIfPresent(weight, portion::setWeightInGrams);
+            productPortionRepository.save(portion);
+            log.info("User {} updated their private portion {}", user.id(), portionId);
+        } else {
+            PortionChange change = portionChangeRepository.findByPortionIdAndUserIdAndDeletedFalse(portionId, user.id())
+                    .orElse(PortionChange.builder()
+                            .portionId(portionId)
+                            .userId(user.id())
+                            .deleted(false)
+                            .createdAt(Instant.now())
+                            .build());
+
+            change.setUpdatedAt(Instant.now());
+
+            updateIfPresent(name, change::setName);
+            updateIfPresent(weight, change::setWeightInGrams);
+
+            portionChangeRepository.save(change);
+            log.info("User {} proposed change for verified/public portion {}", user.id(), portionId);
+        }
     }
 
     @Transactional
@@ -159,11 +268,140 @@ public class ProductService {
         log.info("Deleted portion: {}", portionId);
     }
 
-    private void addPortionToProduct(Product product, String name, BigDecimal weight) {
+    @Transactional
+    public void deletePortionUser(UUID portionId, AuthUser user) {
+        ProductPortion portion = productPortionRepository.findById(portionId)
+                .orElseThrow(() -> new NotFoundException("Portion not found"));
+
+        boolean isOwner = portion.getCreatedBy().equals(user.id());
+        boolean isPrivate = !portion.isPublished();
+
+        if (!isOwner)
+            throw new ConflictException("You can only delete portions created by you.");
+        if (!isPrivate)
+            throw new ConflictException("This portion is already verified and public. You cannot delete it.");
+
+        productPortionRepository.delete(portion);
+        log.info("User {} deleted their private portion {}", user.id(), portionId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductChangeResponse> getPendingProductChanges() {
+        return productChangeRepository.findAllByDeletedFalse().stream().map(c -> new ProductChangeResponse(
+                c.getId(),
+                c.getProductId(),
+                c.getUserId(),
+                c.getName(),
+                c.getBrand(),
+                c.getBarcode(),
+                c.getEnergyKcal(),
+                c.getCarbohydrates(),
+                c.getSugars(),
+                c.getFat(),
+                c.getSaturatedFat(),
+                c.getProtein(),
+                c.getFiber(),
+                c.getSalt(),
+                c.getGlycemicIndex()
+        )).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PortionChangeResponse> getPendingPortionChanges() {
+        return portionChangeRepository.findAllByDeletedFalse().stream().map(c -> new PortionChangeResponse(
+                c.getId(),
+                c.getPortionId(),
+                c.getUserId(),
+                c.getName(),
+                c.getWeightInGrams()
+        )).toList();
+    }
+
+    @Transactional
+    public void approveProductChange(UUID changeId) {
+        ProductChange change = productChangeRepository.findById(changeId)
+                .orElseThrow(() -> new NotFoundException("Change not found"));
+        Product product = productRepository.findByIdAndDeletedFalse(change.getProductId())
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+
+        updateIfPresent(change.getName(), product::setName);
+        updateIfPresent(change.getBrand(), product::setBrand);
+        updateIfPresent(change.getBarcode(), product::setBarcode);
+        updateIfPresent(change.getEnergyKcal(), product::setEnergyKcal);
+        updateIfPresent(change.getCarbohydrates(), product::setCarbohydrates);
+        updateIfPresent(change.getSugars(), product::setSugars);
+        updateIfPresent(change.getFat(), product::setFat);
+        updateIfPresent(change.getSaturatedFat(), product::setSaturatedFat);
+        updateIfPresent(change.getProtein(), product::setProtein);
+        updateIfPresent(change.getFiber(), product::setFiber);
+        updateIfPresent(change.getSalt(), product::setSalt);
+        updateIfPresent(change.getGlycemicIndex(), product::setGlycemicIndex);
+
+        change.setDeleted(true);
+        productRepository.save(product);
+        productChangeRepository.save(change);
+        log.info("Product change {} approved and applied to product {}", changeId, product.getId());
+    }
+
+    @Transactional
+    public void approvePortionChange(UUID changeId) {
+        PortionChange change = portionChangeRepository.findById(changeId)
+                .orElseThrow(() -> new NotFoundException("Change not found"));
+        ProductPortion portion = productPortionRepository.findById(change.getPortionId())
+                .orElseThrow(() -> new NotFoundException("Portion not found"));
+
+        updateIfPresent(change.getName(), portion::setName);
+        updateIfPresent(change.getWeightInGrams(), portion::setWeightInGrams);
+
+        change.setDeleted(true);
+        productPortionRepository.save(portion);
+        portionChangeRepository.save(change);
+        log.info("Portion change {} approved and applied to portion {}", changeId, portion.getId());
+    }
+
+    private Product createProductInternal(AddProductRequest productRequest, boolean isPublished, UUID creatorId) {
+        if (productRequest.barcode() != null && productRepository.existsByBarcodeAndDeletedFalse(productRequest.barcode()))
+            throw new ConflictException("Product with this barcode already exists");
+
+        validateMacroRelations(
+                productRequest.carbohydrates(), productRequest.sugars(),
+                productRequest.fat(), productRequest.saturatedFat()
+        );
+
+        Product product = Product.builder()
+                .name(productRequest.name())
+                .brand(productRequest.brand())
+                .barcode(productRequest.barcode())
+                .energyKcal(productRequest.energyKcal())
+                .carbohydrates(productRequest.carbohydrates())
+                .fat(productRequest.fat())
+                .protein(productRequest.protein())
+                .sugars(productRequest.sugars())
+                .saturatedFat(productRequest.saturatedFat())
+                .fiber(productRequest.fiber())
+                .salt(productRequest.salt())
+                .glycemicIndex(productRequest.glycemicIndex())
+                .published(isPublished)
+                .deleted(false)
+                .createdBy(creatorId)
+                .build();
+
+        addPortionToProduct(product, "100g", new BigDecimal("100.0"), isPublished, creatorId);
+        if (productRequest.portions() != null && !productRequest.portions().isEmpty())
+            productRequest.portions().forEach(p -> addPortionToProduct(product, p.name(), p.weightInGrams(), isPublished, creatorId));
+
+        Product savedProduct = productRepository.save(product);
+        log.info("Created new product: {}", savedProduct.getName());
+        return savedProduct;
+
+    }
+
+    private void addPortionToProduct(Product product, String name, BigDecimal weight, boolean isPublished, UUID creatorId) {
         ProductPortion portion = ProductPortion.builder()
                 .name(name)
                 .weightInGrams(weight)
-                .published(true)
+                .published(isPublished)
+                .createdBy(creatorId)
                 .build();
         product.getPortions().add(portion);
         portion.setProduct(product);
@@ -176,43 +414,17 @@ public class ProductService {
             throw new ConflictException("Saturated fat cannot be greater than total fat");
     }
 
-    private ProductAdminResponse mapToResponse(Product product) {
-        List<ProductPortionAdminResponse> portionResponses = product.getPortions().stream()
-                .sorted(Comparator.comparing(ProductPortion::getWeightInGrams))
-                .map(p -> new ProductPortionAdminResponse(
-                        p.getId(),
-                        p.getName(),
-                        p.getWeightInGrams()
-                )).toList();
-
-        ProductNutritionResponse nutrition = new ProductNutritionResponse(
-                product.getEnergyKcal(),
-                product.getCarbohydrates(),
-                product.getSugars(),
-                product.getFat(),
-                product.getSaturatedFat(),
-                product.getProtein(),
-                product.getFiber(),
-                product.getSalt(),
-                product.getGlycemicIndex()
-        );
-
-        return new ProductAdminResponse(
-                product.getId(),
-                product.getName(),
-                product.getBrand(),
-                product.getBarcode(),
-                nutrition,
-                portionResponses,
-                product.isPublished(),
-                product.getCreatedAt(),
-                product.getUpdatedAt()
-        );
-    }
-
     private <T> void updateIfPresent(T value, Consumer<T> setter) {
         if (value != null) {
             setter.accept(value);
         }
+    }
+
+    private ProductDto assembleSmartProduct(Product product, UUID userId) {
+        ProductChange change = productChangeRepository.findByProductIdAndUserIdAndDeletedFalse(product.getId(), userId)
+                .orElse(null);
+        List<ProductPortion> allVisiblePortions = productPortionRepository.findAllVisibleForUser(product.getId(), userId);
+        List<PortionChange> portionChanges = portionChangeRepository.findAllActiveByUserIdAndProduct(userId, product.getId());
+        return productMerger.merge(product, change, allVisiblePortions, portionChanges);
     }
 }

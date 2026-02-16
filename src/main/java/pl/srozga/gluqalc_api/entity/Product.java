@@ -71,9 +71,11 @@ public class Product {
     private boolean published = false;
 
     @Column(nullable = false)
+    private UUID createdBy;
+
+    @Column(nullable = false)
     @Builder.Default
     private boolean deleted = false;
-
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -82,15 +84,14 @@ public class Product {
     private Instant updatedAt;
 
     @Override
-    public boolean equals(Object o) {
+    public final boolean equals(Object o) {
         if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Product product = (Product) o;
-        return id != null && Objects.equals(id, product.id);
+        if (!(o instanceof Product other)) return false;
+        return getId() != null && Objects.equals(getId(), other.getId());
     }
 
     @Override
-    public int hashCode() {
+    public final int hashCode() {
         return getClass().hashCode();
     }
 }

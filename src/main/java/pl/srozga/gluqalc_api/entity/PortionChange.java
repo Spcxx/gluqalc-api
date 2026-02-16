@@ -7,56 +7,36 @@ import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import pl.srozga.gluqalc_api.common.AuthProvider;
-import pl.srozga.gluqalc_api.common.UserRole;
 
+import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
+@Table(name = "portion_changes")
 @Getter
 @Setter
 @EntityListeners(AuditingEntityListener.class)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User {
+public class PortionChange {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @JdbcTypeCode(SqlTypes.UUID)
     @Column(updatable = false, nullable = false)
     private UUID id;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+    @Column(name = "portion_id", nullable = false)
+    private UUID portionId;
 
-    private String passwordHash;
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @Enumerated(EnumType.STRING)
-    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "role", nullable = false)
-    @Builder.Default
-    private Set<UserRole> roles = new HashSet<>();
-
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AuthProvider provider = AuthProvider.LOCAL;
-
-    @Builder.Default
-    @Column(nullable = false)
-    private boolean enabled = true;
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean locked = false;
-    @Builder.Default
-    @Column(nullable = false)
-    private boolean deleted = false;
+    private String name;
+    @Column(precision = 10, scale = 1)
+    private BigDecimal weightInGrams;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
@@ -64,11 +44,14 @@ public class User {
     @LastModifiedDate
     @Column(nullable = false)
     private Instant updatedAt;
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean deleted = false;
 
     @Override
     public final boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof User other)) return false;
+        if (!(o instanceof PortionChange other)) return false;
         return getId() != null && Objects.equals(getId(), other.getId());
     }
 
