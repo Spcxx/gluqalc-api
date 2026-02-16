@@ -1,15 +1,12 @@
 package pl.srozga.gluqalc_api.dto.request;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 
-public record EditProductRequest(
+public record UpdateProductRequest(
         @Nullable String name,
         @Nullable String brand,
         @Nullable String barcode,

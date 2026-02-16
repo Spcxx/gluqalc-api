@@ -1,4 +1,11 @@
 package pl.srozga.gluqalc_api.dto.response;
 
-public record ProductPortionResponse() {
+import java.math.BigDecimal;
+import java.util.UUID;
+
+public record ProductPortionAdminResponse(
+        UUID id,
+        String name,
+        BigDecimal weightInGrams
+) {
 }
