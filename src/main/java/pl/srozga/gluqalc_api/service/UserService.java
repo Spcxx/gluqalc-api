@@ -78,6 +78,7 @@ public class UserService {
         user.setDeleted(true);
         userRepository.save(user);
         refreshTokenService.deleteRefreshTokenByUserId(user.getId());
+        log.info("Soft deleted user: {}", id);
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +96,7 @@ public class UserService {
             throw new ConflictException("User already has this role");
         user.getRoles().add(role);
         userRepository.save(user);
+        log.info("Added role {} to user {}", role, id);
     }
 
     @Transactional
@@ -105,6 +107,7 @@ public class UserService {
             throw new ConflictException("User does not have this role");
         user.getRoles().remove(role);
         userRepository.save(user);
+        log.info("Removed role {} from user {}", role, id);
     }
 
     private UserResponse mapToResponse(User user) {
