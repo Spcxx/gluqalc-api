@@ -1,5 +1,7 @@
 package pl.srozga.gluqalc_api.exception.handler;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatus;
@@ -12,8 +14,10 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pl.srozga.gluqalc_api.dto.internal.ApiError;
@@ -22,6 +26,7 @@ import pl.srozga.gluqalc_api.exception.ConflictException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
 import pl.srozga.gluqalc_api.exception.TokenAuthenticationException;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -122,6 +127,35 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleMissingRequestHeaderException(MissingRequestHeaderException e) {
         String message = String.format("Missing required header: '%s'", e.getHeaderName());
         return handleException(HttpStatus.BAD_REQUEST, message);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
+        String message = String.format("Missing required parameter: '%s'", e.getParameterName());
+        return handleException(HttpStatus.BAD_REQUEST, message);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ApiError> handleHandlerMethodValidationException(HandlerMethodValidationException e) {
+        if (e.getCause() instanceof ConstraintViolationException c)
+            return handleConstraintViolationException(c);
+        Map <String, String> errors = new HashMap<>();
+        errors.put("error", "Validation failed: " + e.getMessage());
+        return handleException(HttpStatus.BAD_REQUEST, errors);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiError> handleConstraintViolationException(ConstraintViolationException e) {
+        Map<String, String> errors = new HashMap<>();
+        for (ConstraintViolation<?> violation : e.getConstraintViolations()) {
+            String path = violation.getPropertyPath().toString();
+            String paramName = path.contains(".")
+                    ? path.substring(path.lastIndexOf('.') + 1)
+                    : path;
+            String message = violation.getMessage();
+            errors.put(paramName, message);
+        }
+        return handleException(HttpStatus.BAD_REQUEST, errors);
     }
 
     private ResponseEntity<ApiError> handleException(HttpStatus status, Object message) {
