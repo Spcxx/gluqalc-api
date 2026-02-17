@@ -1,0 +1,1 @@
+ALTER TABLE user_profiles ADD COLUMN weekly_kcal_distribution VARCHAR(1000);

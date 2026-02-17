@@ -1,6 +1,9 @@
 server:
   forward-headers-strategy: framework
 app:
+  security:
+    db-encryption:
+      key: ${DB_ENCRYPTION_KEY}
   integration:
     open-food-facts:
       url: https://world.openfoodfacts.org
