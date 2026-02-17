@@ -11,6 +11,7 @@ public record MealCategoryResponse(
         Integer sortOrder,
         @Nullable
         ProductNutritionResponse totalNutrition,
-        @Nullable List<MealEntryResponse> entries
+        @Nullable List<MealEntryResponse> entries,
+        @Nullable InsulinDoseResponse insulinDose
 ) {
 }

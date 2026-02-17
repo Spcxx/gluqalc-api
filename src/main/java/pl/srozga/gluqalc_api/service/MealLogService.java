@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.srozga.gluqalc_api.component.diabetes.DiabetesCalculator;
 import pl.srozga.gluqalc_api.component.meal.MealLogMapper;
+import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductPortionDto;
 import pl.srozga.gluqalc_api.dto.request.AddMealEntryRequest;
@@ -12,9 +14,11 @@ import pl.srozga.gluqalc_api.dto.response.MealCategoryResponse;
 import pl.srozga.gluqalc_api.dto.response.MealEntryResponse;
 import pl.srozga.gluqalc_api.entity.MealCategory;
 import pl.srozga.gluqalc_api.entity.MealEntry;
+import pl.srozga.gluqalc_api.entity.UserProfile;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
 import pl.srozga.gluqalc_api.repository.MealCategoryRepository;
 import pl.srozga.gluqalc_api.repository.MealEntryRepository;
+import pl.srozga.gluqalc_api.repository.UserProfileRepository;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 
 import java.math.BigDecimal;
@@ -35,11 +39,15 @@ public class MealLogService {
     private final MealCategoryRepository mealCategoryRepository;
     private final ProductService productService;
     private final MealLogMapper mealLogMapper;
+    private final UserProfileRepository userProfileRepository;
+    private final DiabetesCalculator diabetesCalculator;
 
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     @Transactional(readOnly = true)
     public List<MealCategoryResponse> getDailyLog(AuthUser user, LocalDate date) {
+        UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+
         List<MealCategory> categories = mealCategoryRepository.findAllByUserIdOrderBySortOrderAsc(user.id());
         List<MealEntry> entries = mealEntryRepository.findAllByUserIdAndConsumedAt(user.id(), date);
 
@@ -49,12 +57,21 @@ public class MealLogService {
         return categories.stream()
                 .map(category -> {
                     List<MealEntry> categoryEntries = entriesByCategory.getOrDefault(category.getId(), Collections.emptyList());
-                    return mealLogMapper.toDto(category, categoryEntries);
+                    List<MealEntryResponse> entryResponses = categoryEntries.stream()
+                            .map(entry -> {
+                                var calcData = diabetesCalculator.calculateForMeal(
+                                        entry, profile, entry.getConsumedAtTime()
+                                );
+                                return mealLogMapper.toDto(entry, calcData);
+                            }).toList();
+
+                    return mealLogMapper.toCategoryDto(category, entryResponses, profile, entryResponses.isEmpty() ? null : entryResponses.getFirst().consumptionTime());
                 }).toList();
     }
 
     @Transactional
     public MealEntryResponse addMealEntry(AuthUser user, AddMealEntryRequest request) {
+        UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
         MealCategory category = mealCategoryRepository.findByIdAndUserId(request.mealCategoryId(), user.id())
                 .orElseThrow(() -> new NotFoundException("Meal category not found"));
         ProductDto product = productService.getProductSmart(request.productId(), user);
@@ -99,7 +116,9 @@ public class MealLogService {
 
         MealEntry savedEntry = mealEntryRepository.save(entry);
         log.info("Added meal entry {} for user {}", savedEntry.getId(), user.id());
-        return mealLogMapper.toDto(savedEntry);
+
+        DiabetesCalcDataDto calcData = diabetesCalculator.calculateForMeal(savedEntry, profile, savedEntry.getConsumedAtTime());
+        return mealLogMapper.toDto(savedEntry, calcData);
     }
 
     @Transactional

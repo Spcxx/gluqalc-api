@@ -1,5 +1,7 @@
 package pl.srozga.gluqalc_api.dto.response;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 public record MealEntryResponse(
@@ -9,6 +11,9 @@ public record MealEntryResponse(
         String brand,
         String barcode,
         MealEntryPortionResponse portion,
-        MealEntryNutritionResponse nutrition
+        MealEntryNutritionResponse nutrition,
+        InsulinDoseResponse insulinDose,
+        LocalDate consumptionDate,
+        LocalTime consumptionTime
 ) {
 }

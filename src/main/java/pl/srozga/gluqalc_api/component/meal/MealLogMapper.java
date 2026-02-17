@@ -1,16 +1,30 @@
 package pl.srozga.gluqalc_api.component.meal;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import pl.srozga.gluqalc_api.component.diabetes.DiabetesCalculator;
+import pl.srozga.gluqalc_api.component.diabetes.DiabetesMapper;
+import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
 import pl.srozga.gluqalc_api.dto.response.*;
 import pl.srozga.gluqalc_api.entity.MealCategory;
 import pl.srozga.gluqalc_api.entity.MealEntry;
+import pl.srozga.gluqalc_api.entity.UserProfile;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class MealLogMapper {
-    public MealEntryResponse toDto(MealEntry entry) {
+    private final DiabetesMapper diabetesMapper;
+    private final DiabetesCalculator diabetesCalculator;
+
+    public MealEntryResponse toDto(MealEntry entry, DiabetesCalcDataDto calcData) {
+        InsulinDoseResponse insulinDose = null;
+        if (calcData != null)
+            insulinDose = diabetesMapper.toResponse(calcData);
+
         return new MealEntryResponse(
                 entry.getId(),
                 entry.getProductId(),
@@ -34,24 +48,27 @@ public class MealLogMapper {
                         entry.getFiber(),
                         entry.getSalt(),
                         entry.getGlycemicIndex()
-                )
+                ),
+                insulinDose,
+                entry.getConsumedAt(),
+                entry.getConsumedAtTime()
         );
     }
 
-    public MealCategoryResponse toDto(MealCategory category, List<MealEntry> entries) {
-        List<MealEntryResponse> entryResponses = entries.stream()
-                .map(this::toDto)
-                .toList();
-
-
+    public MealCategoryResponse toCategoryDto(MealCategory category, List<MealEntryResponse> entryResponses, UserProfile profile, LocalTime time) {
         ProductNutritionResponse totalNutrition = calculateTotalNutrition(entryResponses);
+        DiabetesCalcDataDto totalInsulinDoseCalc = diabetesCalculator.calculateForCategory(entryResponses, profile, time);
+        InsulinDoseResponse totalInsulinDose = null;
+        if (totalInsulinDoseCalc != null)
+            totalInsulinDose = diabetesMapper.toResponse(totalInsulinDoseCalc);
 
         return new MealCategoryResponse(
                 category.getId(),
                 category.getName(),
                 category.getSortOrder(),
                 totalNutrition,
-                entryResponses
+                entryResponses,
+                totalInsulinDose
         );
     }
 

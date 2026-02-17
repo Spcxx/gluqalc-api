@@ -11,6 +11,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -37,6 +38,8 @@ public class MealEntry {
 
     @Column(nullable = false)
     private LocalDate consumedAt;
+    @Column(nullable = false)
+    private LocalTime consumedAtTime;
 
     // product snapshot
     private UUID productId;

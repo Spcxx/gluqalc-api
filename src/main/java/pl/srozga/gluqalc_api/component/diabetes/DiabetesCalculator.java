@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import pl.srozga.gluqalc_api.common.InsulinFatProteinStrategy;
 import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
+import pl.srozga.gluqalc_api.dto.response.MealEntryResponse;
 import pl.srozga.gluqalc_api.entity.MealEntry;
 import pl.srozga.gluqalc_api.entity.UserProfile;
 
@@ -29,20 +30,27 @@ public class DiabetesCalculator {
     private static final BigDecimal FPU_DIVISOR = new BigDecimal("100");
     private static final BigDecimal PROTEIN_KCAL = new BigDecimal("4");
     private static final BigDecimal FAT_KCAL = new BigDecimal("9");
+    private static final BigDecimal MIN_EXTENDED_DOSE_THRESHOLD = new BigDecimal("1");
 
-    public DiabetesCalcDataDto calculateForProduct(ProductDto product, BigDecimal weightInGrams, UserProfile profile, LocalTime time) {
-        if (product.nutrition() == null)
+    public DiabetesCalcDataDto calculateForMeal(MealEntry entry, UserProfile profile, LocalTime time) {
+        if (entry == null)
             return DiabetesCalcDataDto.empty();
 
-        BigDecimal ratio = weightInGrams.divide(new BigDecimal("100"), MathContext.DECIMAL64);
-        BigDecimal carbs = safeMultiply(product.nutrition().carbohydrates(), ratio);
-        BigDecimal protein = safeMultiply(product.nutrition().protein(), ratio);
-        BigDecimal fat = safeMultiply(product.nutrition().fat(), ratio);
+        BigDecimal totalCarbs = BigDecimal.ZERO;
+        BigDecimal totalProtein = BigDecimal.ZERO;
+        BigDecimal totalFat = BigDecimal.ZERO;
 
-        return calculateInternal(carbs, protein, fat, profile, time);
+        if (entry.getCarbohydrates() != null)
+            totalCarbs = entry.getCarbohydrates();
+        if (entry.getProtein() != null)
+            totalProtein = entry.getProtein();
+        if (entry.getFat() != null)
+            totalFat = entry.getFat();
+
+        return calculateInternal(totalCarbs, totalProtein, totalFat, profile, time);
     }
 
-    public DiabetesCalcDataDto calculateForMeal(List<MealEntry> entries, UserProfile profile, LocalTime time) {
+    public DiabetesCalcDataDto calculateForCategory(List<MealEntryResponse> entries, UserProfile profile, LocalTime time) {
         if (entries == null || entries.isEmpty())
             return DiabetesCalcDataDto.empty();
 
@@ -50,13 +58,13 @@ public class DiabetesCalculator {
         BigDecimal totalProtein = BigDecimal.ZERO;
         BigDecimal totalFat = BigDecimal.ZERO;
 
-        for (MealEntry entry : entries) {
-            if (entry.getCarbohydrates() != null)
-                totalCarbs = totalCarbs.add(entry.getCarbohydrates());
-            if (entry.getProtein() != null)
-                totalProtein = totalProtein.add(entry.getProtein());
-            if (entry.getFat() != null)
-                totalFat = totalFat.add(entry.getFat());
+        for (MealEntryResponse entry : entries) {
+            if (entry.nutrition().carbohydrates() != null)
+                totalCarbs = totalCarbs.add(entry.nutrition().carbohydrates());
+            if (entry.nutrition().protein() != null)
+                totalProtein = totalProtein.add(entry.nutrition().protein());
+            if (entry.nutrition().fat() != null)
+                totalFat = totalFat.add(entry.nutrition().fat());
         }
 
         return calculateInternal(totalCarbs, totalProtein, totalFat, profile, time);
@@ -144,6 +152,13 @@ public class DiabetesCalculator {
             default:
                 description = "No strategy selected.";
                 break;
+        }
+
+        if (fatProteinDose.compareTo(MIN_EXTENDED_DOSE_THRESHOLD) < 0) {
+            if (fatProteinDose.compareTo(BigDecimal.ZERO) > 0)
+                description += " (Extended dose < 0.5j ignored)";
+            fatProteinDose = BigDecimal.ZERO;
+            durationMinutes = 0;
         }
 
         BigDecimal totalDose = carbDose.add(fatProteinDose).setScale(2, RoundingMode.HALF_UP);

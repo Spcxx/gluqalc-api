@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import pl.srozga.gluqalc_api.common.ProductProviderType;
 import pl.srozga.gluqalc_api.component.nutrition.NutritionMapper;
-import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductNutritionDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductPortionDto;
