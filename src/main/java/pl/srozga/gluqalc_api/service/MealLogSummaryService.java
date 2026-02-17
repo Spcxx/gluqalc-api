@@ -21,8 +21,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -39,11 +42,12 @@ public class MealLogSummaryService {
                 .orElseThrow(() -> new NotFoundException("User profile not found"));
 
         List<MealEntry> consumedMeals = mealEntryRepository.findAllByUserIdAndConsumedAt(user.id(), date);
+        BigDecimal weeklyBalanceAdjustment = calculateWeeklyBalance(user, profile, date);
 
-        return calculateSummary(profile, date, consumedMeals);
+        return calculateSummary(profile, date, consumedMeals, weeklyBalanceAdjustment);
     }
 
-    private DaySummaryResponse calculateSummary(UserProfile profile, LocalDate date, List<MealEntry> meals) {
+    private DaySummaryResponse calculateSummary(UserProfile profile, LocalDate date, List<MealEntry> meals, BigDecimal adjustment) {
         UserCalcDataDto baseCalc;
         try {
             baseCalc = nutritionCalculator.calculate(profile);
@@ -55,7 +59,11 @@ public class MealLogSummaryService {
         int dayOffset = getDayOffset(profile, date);
         BigDecimal todayKcalTarget = baseCalc.dailyGoalKcal().add(BigDecimal.valueOf(dayOffset));
 
-        NutritionalValuesResponse target = recalculateMacrosForKcal(todayKcalTarget, profile);
+        BigDecimal finalTargetKcal = todayKcalTarget.add(adjustment);
+        if (finalTargetKcal.compareTo(BigDecimal.ZERO) < 0)
+            finalTargetKcal = BigDecimal.ZERO;
+
+        NutritionalValuesResponse target = recalculateMacrosForKcal(finalTargetKcal, profile);
         NutritionalValuesResponse consumed = sumConsumed(meals);
         NutritionalValuesResponse remaining = new NutritionalValuesResponse(
                 target.energyKcal().subtract(consumed.energyKcal()),
@@ -121,5 +129,35 @@ public class MealLogSummaryService {
         BigDecimal c = kcal.multiply(BigDecimal.valueOf(ratios.carb())).divide(new BigDecimal("4"), 0, RoundingMode.HALF_UP);
 
         return new NutritionalValuesResponse(kcal, p, f, c);
+    }
+
+    private BigDecimal calculateWeeklyBalance(AuthUser user, UserProfile profile, LocalDate today) {
+        LocalDate startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        if (today.isEqual(startOfWeek) || today.isBefore(startOfWeek))
+            return BigDecimal.ZERO;
+
+        LocalDate yesterday = today.minusDays(1);
+        List<MealEntry> pastEntries = mealEntryRepository.findAllByUserIdAndConsumedAtBetween(user.id(), startOfWeek, yesterday);
+
+        Map<LocalDate, List<MealEntry>> entriesByDate = pastEntries.stream()
+                .collect(Collectors.groupingBy(MealEntry::getConsumedAt));
+
+        BigDecimal accumulatedBalance = BigDecimal.ZERO;
+        UserCalcDataDto baseCalc = nutritionCalculator.calculate(profile);
+
+        LocalDate iterDate = startOfWeek;
+        while (!iterDate.isAfter(yesterday)) {
+            int dayOffset = getDayOffset(profile, iterDate);
+            BigDecimal dailyTarget = baseCalc.dailyGoalKcal().add(BigDecimal.valueOf(dayOffset));
+            List<MealEntry> dayMeals = entriesByDate.getOrDefault(iterDate, Collections.emptyList());
+            BigDecimal consumedKcal = sumConsumed(dayMeals).energyKcal();
+            BigDecimal dayBalance = dailyTarget.subtract(consumedKcal);
+
+            accumulatedBalance = accumulatedBalance.add(dayBalance);
+
+            iterDate = iterDate.plusDays(1);
+        }
+
+        return accumulatedBalance.min(BigDecimal.ZERO);
     }
 }
