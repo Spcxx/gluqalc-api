@@ -37,6 +37,15 @@ public class MealCategoryController {
         return mealCategoryService.createCategory(user, request);
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public MealCategoryResponse getCategory(
+            @AuthenticationPrincipal AuthUser user,
+            @PathVariable UUID id
+    ) {
+        return mealCategoryService.getCategory(id, user);
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)

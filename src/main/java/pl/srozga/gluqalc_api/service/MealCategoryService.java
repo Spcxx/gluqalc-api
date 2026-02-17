@@ -39,6 +39,15 @@ public class MealCategoryService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public MealCategoryResponse getCategory(UUID categoryId, AuthUser user) {
+        MealCategory category = mealCategoryRepository.findByIdAndUserId(categoryId, user.id())
+                .orElseThrow(() -> new NotFoundException("Meal category not found"));
+        UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+
+        return mealLogMapper.toCategoryDto(category, Collections.emptyList(), profile, LocalTime.now());
+    }
+
     @Transactional
     public MealCategoryResponse createCategory(AuthUser user, AddMealCategoryRequest request) {
         UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);

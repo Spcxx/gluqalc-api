@@ -45,6 +45,17 @@ public class MealLogService {
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     @Transactional(readOnly = true)
+    public MealEntryResponse getMealEntry(UUID entryId, AuthUser user) {
+        UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+
+        MealEntry entry = mealEntryRepository.findByIdAndUserId(entryId, user.id())
+                .orElseThrow(() -> new NotFoundException("Meal entry not found"));
+
+        var calcData = diabetesCalculator.calculateForMeal(entry, profile, entry.getConsumedAtTime());
+        return mealLogMapper.toDto(entry, calcData);
+    }
+
+    @Transactional(readOnly = true)
     public List<MealCategoryResponse> getDailyLog(AuthUser user, LocalDate date) {
         UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
 

@@ -46,6 +46,15 @@ public class MealLogController {
         return mealLogService.addMealEntry(user, request);
     }
 
+    @GetMapping("/{entryId}")
+    @PreAuthorize("isAuthenticated()")
+    public MealEntryResponse getEntry(
+            @AuthenticationPrincipal AuthUser user,
+            @PathVariable UUID entryId
+    ) {
+        return mealLogService.getMealEntry(entryId, user);
+    }
+
     @DeleteMapping("/{entryId}")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
