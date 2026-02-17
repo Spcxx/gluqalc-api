@@ -76,7 +76,7 @@ public class DiabetesCalculator {
         BigDecimal fatKcal = fat.multiply(FAT_KCAL);
         BigDecimal fpu = (proteinKcal.add(fatKcal)).divide(FPU_DIVISOR, 2, RoundingMode.HALF_UP);
 
-        if (profile.getIfpStrategy() == null || profile.getIfpStrategy() == InsulinFatProteinStrategy.NONE)
+        if (profile == null || profile.getIfpStrategy() == null || profile.getIfpStrategy() == InsulinFatProteinStrategy.NONE)
             return new DiabetesCalcDataDto(cu, fpu, null, null, null, null, "No insulin strategy configured");
 
         BigDecimal icr = getHourlyCarbRatio(profile, time);

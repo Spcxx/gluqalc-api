@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -111,6 +112,7 @@ public class MealLogService {
                 .userId(user.id())
                 .mealCategory(category)
                 .consumedAt(request.date())
+                .consumedAtTime(LocalTime.now())
                 .productId(product.id())
                 .productName(product.name())
                 .brand(product.brand())

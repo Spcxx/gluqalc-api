@@ -173,7 +173,7 @@ public class ProductService {
         Product product = productRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
         if (product.isPublished())
-            throw new IllegalStateException("Product is already approved");
+            throw new IllegalArgumentException("Product is already approved");
 
         product.setPublished(true);
         product.getPortions().forEach(p -> p.setPublished(true));
