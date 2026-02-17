@@ -1,5 +1,7 @@
 package pl.srozga.gluqalc_api.dto.response;
 
+import pl.srozga.gluqalc_api.common.ProductProviderType;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -13,6 +15,7 @@ public record ProductAdminResponse(
         List<ProductPortionResponse> portions,
         boolean published,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        ProductProviderType provider
 ) {
 }

@@ -1,6 +1,7 @@
 package pl.srozga.gluqalc_api.component.product;
 
 import org.springframework.stereotype.Component;
+import pl.srozga.gluqalc_api.common.ProductProviderType;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductNutritionDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductPortionDto;
@@ -75,7 +76,8 @@ public class ProductMerger {
                 base.isPublished(),
                 base.getCreatedBy(),
                 base.getCreatedAt(),
-                base.getUpdatedAt()
+                base.getUpdatedAt(),
+                ProductProviderType.LOCAL
         );
     }
 }

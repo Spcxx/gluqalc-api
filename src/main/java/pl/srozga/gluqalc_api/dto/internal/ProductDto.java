@@ -1,5 +1,7 @@
 package pl.srozga.gluqalc_api.dto.internal;
 
+import pl.srozga.gluqalc_api.common.ProductProviderType;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -14,6 +16,7 @@ public record ProductDto(
         boolean published,
         UUID createdBy,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        ProductProviderType source
 ) {
 }

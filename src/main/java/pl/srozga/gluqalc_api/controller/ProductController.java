@@ -1,30 +1,41 @@
 package pl.srozga.gluqalc_api.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import pl.srozga.gluqalc_api.common.UserRole;
 import pl.srozga.gluqalc_api.component.product.ProductMapper;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.request.AddProductRequest;
+import pl.srozga.gluqalc_api.dto.request.ImportProductRequest;
 import pl.srozga.gluqalc_api.dto.request.ProductPortionRequest;
 import pl.srozga.gluqalc_api.dto.request.UpdateProductRequest;
 import pl.srozga.gluqalc_api.dto.response.PortionChangeResponse;
 import pl.srozga.gluqalc_api.dto.response.ProductAdminResponse;
 import pl.srozga.gluqalc_api.dto.response.ProductChangeResponse;
+import pl.srozga.gluqalc_api.dto.response.ProductResponse;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import pl.srozga.gluqalc_api.service.ProductService;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
+@Validated
 public class ProductController {
     private final ProductService productService;
     private final ProductMapper productMapper;
@@ -204,5 +215,36 @@ public class ProductController {
     @ResponseStatus(HttpStatus.OK)
     public void approvePortionChange(@PathVariable UUID changeId) {
         productService.approvePortionChange(changeId);
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Page<?>> searchUnified(
+            @Size(min = 3, max = 64) @RequestParam String q,
+            @AuthenticationPrincipal AuthUser user,
+            Locale locale,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        Page<ProductDto> result = productService.searchProductsUnified(q, user, locale, pageable);
+        if (user.roles().contains(UserRole.ADMIN)) {
+            Page<ProductAdminResponse> adminResponses = result.map(productMapper::toAdminResponse);
+            return ResponseEntity.ok(adminResponses);
+        } else {
+            Page<ProductResponse> responses = result.map(productMapper::toResponse);
+            return ResponseEntity.ok(responses);
+        }
+    }
+
+    @PostMapping("/import")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> importProduct(
+            @Valid @RequestBody ImportProductRequest request,
+            @AuthenticationPrincipal AuthUser user
+    ) {
+        ProductDto productDto = productService.importProduct(request.barcode(), user);
+        if (user.roles().contains(UserRole.ADMIN))
+            return ResponseEntity.ok(productMapper.toAdminResponse(productDto));
+        else
+            return ResponseEntity.ok(productMapper.toResponse(productDto));
     }
 }

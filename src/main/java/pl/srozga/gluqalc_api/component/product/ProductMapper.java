@@ -2,6 +2,7 @@ package pl.srozga.gluqalc_api.component.product;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import pl.srozga.gluqalc_api.common.ProductProviderType;
 import pl.srozga.gluqalc_api.component.nutrition.NutritionMapper;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductNutritionDto;
@@ -39,7 +40,8 @@ public class ProductMapper {
                 product.isPublished(),
                 product.getCreatedBy(),
                 product.getCreatedAt(),
-                product.getUpdatedAt()
+                product.getUpdatedAt(),
+                ProductProviderType.LOCAL
         );
     }
 
@@ -55,7 +57,8 @@ public class ProductMapper {
                 mapPortions(portions),
                 product.published(),
                 product.createdAt(),
-                product.updatedAt()
+                product.updatedAt(),
+                product.source()
         );
     }
 
@@ -68,7 +71,8 @@ public class ProductMapper {
                 product.brand(),
                 product.barcode(),
                 mapResponseNutrition(product.nutrition()),
-                mapPortions(portions)
+                mapPortions(portions),
+                product.source()
         );
     }
 

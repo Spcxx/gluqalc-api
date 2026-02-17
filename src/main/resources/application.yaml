@@ -1,6 +1,10 @@
 server:
   forward-headers-strategy: framework
 app:
+  integration:
+    open-food-facts:
+      url: https://world.openfoodfacts.org
+      user-agent: GluQalc/1.0 (rozga.szymon@gmail.com)
   api-url: http://localhost:8080
   email-from: no-reply@srozga.pl
   jwt:

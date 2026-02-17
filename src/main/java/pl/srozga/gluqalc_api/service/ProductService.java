@@ -2,6 +2,10 @@ package pl.srozga.gluqalc_api.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.srozga.gluqalc_api.common.UserRole;
@@ -17,6 +21,7 @@ import pl.srozga.gluqalc_api.entity.ProductChange;
 import pl.srozga.gluqalc_api.entity.ProductPortion;
 import pl.srozga.gluqalc_api.exception.ConflictException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
+import pl.srozga.gluqalc_api.integration.ProductProvider;
 import pl.srozga.gluqalc_api.repository.PortionChangeRepository;
 import pl.srozga.gluqalc_api.repository.ProductChangeRepository;
 import pl.srozga.gluqalc_api.repository.ProductPortionRepository;
@@ -25,9 +30,9 @@ import pl.srozga.gluqalc_api.security.principal.AuthUser;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -39,6 +44,8 @@ public class ProductService {
     private final PortionChangeRepository portionChangeRepository;
     private final ProductMerger productMerger;
     private final ProductMapper productMapper;
+    private final ProductProvider productProvider;
+    private final ObjectProvider<ProductService> selfProvider;
 
     @Transactional
     public ProductDto createProduct(UUID adminId, AddProductRequest productRequest) {
@@ -357,6 +364,77 @@ public class ProductService {
         productPortionRepository.save(portion);
         portionChangeRepository.save(change);
         log.info("Portion change {} approved and applied to portion {}", changeId, portion.getId());
+    }
+
+    public Page<ProductDto> searchProductsUnified(String query, AuthUser user, Locale locale, Pageable pageable) {
+        ProductService self = selfProvider.getObject();
+        List<ProductDto> results = new ArrayList<>(self.findLocalProductsDto(query, user.id()));
+
+        int requiredFromOff = Math.max(50, (int) pageable.getOffset() + pageable.getPageSize());
+        try {
+            List<ProductDto> offResults = productProvider.searchProducts(query, locale, requiredFromOff);
+
+            List<String> existingBarcodes = results.stream()
+                    .map(ProductDto::barcode)
+                    .filter(Objects::nonNull)
+                    .toList();
+            offResults.stream()
+                    .filter(dto -> dto.barcode() == null || !existingBarcodes.contains(dto.barcode()))
+                    .forEach(results::add);
+        } catch (Exception e) {
+            log.warn("Failed to search products from external provider", e);
+        }
+
+        int start = (int) pageable.getOffset();
+        if (start >= results.size())
+            return new PageImpl<>(Collections.emptyList(), pageable, results.size());
+
+        int end = Math.min(start + pageable.getPageSize(), results.size());
+        List<ProductDto> pageContent = results.subList(start, end);
+
+        return new PageImpl<>(pageContent, pageable, results.size());
+    }
+
+    public ProductDto importProduct(String barcode, AuthUser user) {
+        ProductService self = selfProvider.getObject();
+        Optional<Product> existing = productRepository.findByBarcodeAndDeletedFalse(barcode);
+        if (existing.isPresent())
+            return self.getProductSmart(existing.get().getId(), user);
+
+        ProductDto offDto = productProvider.getProductByBarcode(barcode)
+                .orElseThrow(() -> new NotFoundException("Product not found in external provider"));
+
+        AddProductRequest request = new AddProductRequest(
+                offDto.name(),
+                offDto.brand(),
+                offDto.barcode(),
+                offDto.nutrition().energyKcal(),
+                offDto.nutrition().carbohydrates(),
+                offDto.nutrition().sugars(),
+                offDto.nutrition().fat(),
+                offDto.nutrition().saturatedFat(),
+                offDto.nutrition().protein(),
+                offDto.nutrition().fiber(),
+                offDto.nutrition().salt(),
+                offDto.nutrition().glycemicIndex(),
+                null
+        );
+
+        if (user.roles().contains(UserRole.ADMIN)) {
+            log.info("Admin {} is importing product with barcode {} from external provider", user.id(), barcode);
+            return self.createProduct(user.id(), request);
+        } else {
+            log.info("User {} is proposing product with barcode {} from external provider", user.id(), barcode);
+            return self.proposeProduct(user.id(), request);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductDto> findLocalProductsDto(String query, UUID userId) {
+        return productRepository.searchProducts(query, userId)
+                .stream()
+                .map(productMapper::toDto)
+                .collect(Collectors.toList()); // Użyj collect, żeby dociągnąć relacje wewnątrz transakcji
     }
 
     private Product createProductInternal(AddProductRequest productRequest, boolean isPublished, UUID creatorId) {
