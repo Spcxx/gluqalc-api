@@ -2,15 +2,19 @@ package pl.srozga.gluqalc_api.dto.request;
 
 import jakarta.validation.constraints.*;
 import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
+import pl.srozga.gluqalc_api.common.InsulinFatProteinStrategy;
 import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;
 import pl.srozga.gluqalc_api.common.UserGender;
 import pl.srozga.gluqalc_api.validation.SumZero;
+import pl.srozga.gluqalc_api.validation.ValidDiabetesProfile;
+import pl.srozga.gluqalc_api.validation.ValidHourlyMap;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.Map;
 
+@ValidDiabetesProfile
 public record UpdateUserProfileRequest(
         UserGender gender,
 
@@ -35,7 +39,14 @@ public record UpdateUserProfileRequest(
         @DecimalMin(value = "0.0", message = "Body fat percentage must be at least 0")
         @DecimalMax(value = "100.0", message = "Body fat percentage cannot exceed 100")
         BigDecimal bodyFatPercentage,
-
         BmrCalculationMethod bmrCalculationMethod,
-        MacroCalculationStrategy macroCalculationStrategy
+        MacroCalculationStrategy macroCalculationStrategy,
+
+        InsulinFatProteinStrategy ifpStrategy,
+        @Positive(message = "ISF must be positive")
+        BigDecimal insulinSensitivityFactor,
+        @Positive(message = "IFP Ratio must be positive")
+        BigDecimal insulinFatProteinRatio,
+        @ValidHourlyMap
+        Map<Integer, BigDecimal> hourlyCarbRatio
 ) {}

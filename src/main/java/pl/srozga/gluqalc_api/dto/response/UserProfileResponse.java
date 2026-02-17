@@ -1,6 +1,7 @@
 package pl.srozga.gluqalc_api.dto.response;
 
 import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
+import pl.srozga.gluqalc_api.common.InsulinFatProteinStrategy;
 import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;
 import pl.srozga.gluqalc_api.common.UserGender;
 
@@ -21,6 +22,10 @@ public record UserProfileResponse(
         BigDecimal bodyFatPercentage,
         BmrCalculationMethod bmrMethod,
         MacroCalculationStrategy macroStrategy,
+        InsulinFatProteinStrategy ifpStrategy,
+        BigDecimal insulinSensitivityFactor,
+        BigDecimal insulinFatProteinRatio,
+        Map<Integer, BigDecimal> hourlyCarbRatio,
         NutritionTargetsResponse targets
 ) {
 }

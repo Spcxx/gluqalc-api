@@ -19,6 +19,7 @@ import pl.srozga.gluqalc_api.repository.UserProfileRepository;
 import pl.srozga.gluqalc_api.repository.UserRepository;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 
+import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.Period;
@@ -55,6 +56,17 @@ public class UserProfileService {
         profile.setBodyFatPercentage(request.bodyFatPercentage());
         profile.setBmrMethod(request.bmrCalculationMethod());
         profile.setMacroStrategy(request.macroCalculationStrategy());
+        profile.setIfpStrategy(request.ifpStrategy());
+        profile.setInsulinSensitivityFactor(request.insulinSensitivityFactor());
+        profile.setInsulinFatProteinRatio(request.insulinFatProteinRatio());
+
+        if (request.hourlyCarbRatio() != null) {
+            try {
+                profile.setHourlyCarbRatioJson(objectMapper.writeValueAsString(request.hourlyCarbRatio()));
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Error serializing ICR map", e);
+            }
+        }
 
         if (request.weeklyKcalDistribution() != null) {
             try {
@@ -92,6 +104,18 @@ public class UserProfileService {
             }
         }
 
+        Map<Integer, BigDecimal> icrMap = null;
+        if (p.getHourlyCarbRatioJson() != null) {
+            try {
+                icrMap = objectMapper.readValue(
+                        p.getHourlyCarbRatioJson(),
+                        new TypeReference<>() {}
+                );
+            } catch (JsonProcessingException e) {
+                log.error("Error deserializing ICR for user {}", p.getId());
+            }
+        }
+
         NutritionTargetsResponse targets = null;
         try {
             UserCalcDataDto calcResult = nutritionCalculator.calculate(p);
@@ -119,6 +143,10 @@ public class UserProfileService {
                 p.getBodyFatPercentage(),
                 p.getBmrMethod(),
                 p.getMacroStrategy(),
+                p.getIfpStrategy(),
+                p.getInsulinSensitivityFactor(),
+                p.getInsulinFatProteinRatio(),
+                icrMap,
                 targets
         );
     }
