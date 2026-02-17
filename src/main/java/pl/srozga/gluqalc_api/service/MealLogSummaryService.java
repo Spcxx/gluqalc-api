@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pl.srozga.gluqalc_api.component.calculator.NutritionCalculator;
+import pl.srozga.gluqalc_api.component.nutrition.NutritionCalculator;
 import pl.srozga.gluqalc_api.dto.response.NutritionalValuesResponse;
 import pl.srozga.gluqalc_api.dto.internal.UserCalcDataDto;
 import pl.srozga.gluqalc_api.dto.response.DaySummaryResponse;

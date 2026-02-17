@@ -1,4 +1,4 @@
-package pl.srozga.gluqalc_api.component.calculator;
+package pl.srozga.gluqalc_api.component.nutrition;
 
 import org.springframework.stereotype.Component;
 import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;

@@ -4,13 +4,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import pl.srozga.gluqalc_api.common.ProductProviderType;
 import pl.srozga.gluqalc_api.component.nutrition.NutritionMapper;
+import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductNutritionDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductPortionDto;
-import pl.srozga.gluqalc_api.dto.response.ProductAdminResponse;
-import pl.srozga.gluqalc_api.dto.response.ProductNutritionResponse;
-import pl.srozga.gluqalc_api.dto.response.ProductPortionResponse;
-import pl.srozga.gluqalc_api.dto.response.ProductResponse;
+import pl.srozga.gluqalc_api.dto.response.*;
 import pl.srozga.gluqalc_api.entity.Product;
 
 import java.util.List;
@@ -37,6 +35,7 @@ public class ProductMapper {
                                 portion.getCreatedBy()
                         ))
                         .toList(),
+
                 product.isPublished(),
                 product.getCreatedBy(),
                 product.getCreatedAt(),
