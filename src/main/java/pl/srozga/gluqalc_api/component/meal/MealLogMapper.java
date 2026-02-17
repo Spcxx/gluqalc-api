@@ -1,10 +1,7 @@
 package pl.srozga.gluqalc_api.component.meal;
 
 import org.springframework.stereotype.Component;
-import pl.srozga.gluqalc_api.dto.response.MealCategoryResponse;
-import pl.srozga.gluqalc_api.dto.response.MealEntryNutritionResponse;
-import pl.srozga.gluqalc_api.dto.response.MealEntryPortionResponse;
-import pl.srozga.gluqalc_api.dto.response.MealEntryResponse;
+import pl.srozga.gluqalc_api.dto.response.*;
 import pl.srozga.gluqalc_api.entity.MealCategory;
 import pl.srozga.gluqalc_api.entity.MealEntry;
 
@@ -47,17 +44,55 @@ public class MealLogMapper {
                 .toList();
 
 
-        BigDecimal totalEnergyKcal = entryResponses.stream()
-                .map(e -> e.nutrition().energyKcal())
-                .filter(v -> v != null)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        ProductNutritionResponse totalNutrition = calculateTotalNutrition(entryResponses);
 
         return new MealCategoryResponse(
                 category.getId(),
                 category.getName(),
                 category.getSortOrder(),
-                totalEnergyKcal,
+                totalNutrition,
                 entryResponses
         );
+    }
+
+    private ProductNutritionResponse calculateTotalNutrition(List<MealEntryResponse> entries) {
+        BigDecimal accEnergy = BigDecimal.ZERO;
+        BigDecimal accCarbs = BigDecimal.ZERO;
+        BigDecimal accSugars = BigDecimal.ZERO;
+        BigDecimal accFat = BigDecimal.ZERO;
+        BigDecimal accSatFat = BigDecimal.ZERO;
+        BigDecimal accProtein = BigDecimal.ZERO;
+        BigDecimal accFiber = BigDecimal.ZERO;
+        BigDecimal accSalt = BigDecimal.ZERO;
+
+        for (MealEntryResponse entry : entries) {
+            MealEntryNutritionResponse n = entry.nutrition();
+            if (n != null) {
+                accEnergy = addSafe(accEnergy, n.energyKcal());
+                accCarbs = addSafe(accCarbs, n.carbohydrates());
+                accSugars = addSafe(accSugars, n.sugars());
+                accFat = addSafe(accFat, n.fat());
+                accSatFat = addSafe(accSatFat, n.saturatedFat());
+                accProtein = addSafe(accProtein, n.protein());
+                accFiber = addSafe(accFiber, n.fiber());
+                accSalt = addSafe(accSalt, n.salt());
+            }
+        }
+
+        return new ProductNutritionResponse(
+                accEnergy,
+                accCarbs,
+                accSugars,
+                accFat,
+                accSatFat,
+                accProtein,
+                accFiber,
+                accSalt,
+                null
+        );
+    }
+
+    private BigDecimal addSafe(BigDecimal accumulator, BigDecimal value) {
+        return accumulator.add(value != null ? value : BigDecimal.ZERO);
     }
 }
