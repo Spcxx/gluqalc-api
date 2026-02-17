@@ -1,4 +1,4 @@
-package pl.srozga.gluqalc_api.security.crypto;
+package pl.srozga.gluqalc_api.security.crypto.enumeration;
 
 import jakarta.persistence.Converter;
 import org.springframework.beans.factory.annotation.Value;

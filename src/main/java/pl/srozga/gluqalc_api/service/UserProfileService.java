@@ -7,7 +7,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.srozga.gluqalc_api.component.calculator.NutritionCalculator;
+import pl.srozga.gluqalc_api.dto.internal.UserCalcDataDto;
 import pl.srozga.gluqalc_api.dto.request.UpdateUserProfileRequest;
+import pl.srozga.gluqalc_api.dto.response.NutritionTargetsResponse;
 import pl.srozga.gluqalc_api.dto.response.UserProfileResponse;
 import pl.srozga.gluqalc_api.entity.User;
 import pl.srozga.gluqalc_api.entity.UserProfile;
@@ -29,6 +32,7 @@ public class UserProfileService {
     private final UserProfileRepository userProfileRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final NutritionCalculator nutritionCalculator;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(AuthUser user) {
@@ -48,6 +52,9 @@ public class UserProfileService {
         profile.setBirthDate(request.birthDate() != null ? request.birthDate().toString() : null);
         profile.setPhysicalActivityLevel(request.physicalActivityLevel());
         profile.setKcalGoalDifference(request.kcalGoalDifference());
+        profile.setBodyFatPercentage(request.bodyFatPercentage());
+        profile.setBmrMethod(request.bmrCalculationMethod());
+        profile.setMacroStrategy(request.macroCalculationStrategy());
 
         if (request.weeklyKcalDistribution() != null) {
             try {
@@ -85,6 +92,21 @@ public class UserProfileService {
             }
         }
 
+        NutritionTargetsResponse targets = null;
+        try {
+            UserCalcDataDto calcResult = nutritionCalculator.calculate(p);
+            targets = new NutritionTargetsResponse(
+                    calcResult.bmr(),
+                    calcResult.tdee(),
+                    calcResult.dailyGoalKcal(),
+                    calcResult.dailyGoalProtein(),
+                    calcResult.dailyGoalFat(),
+                    calcResult.dailyGoalCarbs()
+            );
+        } catch (IllegalArgumentException e) {
+            log.debug("Could not calculate nutrition targets for user {}: {}", p.getId(), e.getMessage());
+        }
+
         return new UserProfileResponse(
                 p.getGender(),
                 p.getWeightInKg(),
@@ -93,7 +115,11 @@ public class UserProfileService {
                 calculateAge(p.getBirthDate() != null ? LocalDate.parse(p.getBirthDate()) : null),
                 p.getPhysicalActivityLevel(),
                 p.getKcalGoalDifference(),
-                distribution
+                distribution,
+                p.getBodyFatPercentage(),
+                p.getBmrMethod(),
+                p.getMacroStrategy(),
+                targets
         );
     }
 

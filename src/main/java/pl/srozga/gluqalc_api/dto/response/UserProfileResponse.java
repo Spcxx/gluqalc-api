@@ -1,5 +1,7 @@
 package pl.srozga.gluqalc_api.dto.response;
 
+import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
+import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;
 import pl.srozga.gluqalc_api.common.UserGender;
 
 import java.math.BigDecimal;
@@ -15,6 +17,10 @@ public record UserProfileResponse(
         Integer age,
         BigDecimal physicalActivityLevel,
         Integer kcalGoalDifference,
-        Map<DayOfWeek, Integer> weeklyKcalDistribution
+        Map<DayOfWeek, Integer> weeklyKcalDistribution,
+        BigDecimal bodyFatPercentage,
+        BmrCalculationMethod bmrMethod,
+        MacroCalculationStrategy macroStrategy,
+        NutritionTargetsResponse targets
 ) {
 }

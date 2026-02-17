@@ -1,9 +1,8 @@
 package pl.srozga.gluqalc_api.dto.request;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Past;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.*;
+import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
+import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;
 import pl.srozga.gluqalc_api.common.UserGender;
 import pl.srozga.gluqalc_api.validation.SumZero;
 
@@ -30,5 +29,13 @@ public record UpdateUserProfileRequest(
 
         Integer kcalGoalDifference,
         @SumZero
-        Map<DayOfWeek, Integer> weeklyKcalDistribution
+        Map<DayOfWeek, Integer> weeklyKcalDistribution,
+
+        @Positive(message = "Body fat percentage must be positive")
+        @DecimalMin(value = "0.0", message = "Body fat percentage must be at least 0")
+        @DecimalMax(value = "100.0", message = "Body fat percentage cannot exceed 100")
+        BigDecimal bodyFatPercentage,
+
+        BmrCalculationMethod bmrCalculationMethod,
+        MacroCalculationStrategy macroCalculationStrategy
 ) {}

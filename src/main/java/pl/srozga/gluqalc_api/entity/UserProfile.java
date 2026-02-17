@@ -7,11 +7,15 @@ import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
+import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;
 import pl.srozga.gluqalc_api.common.UserGender;
 import pl.srozga.gluqalc_api.security.crypto.AttributeEncryptor;
 import pl.srozga.gluqalc_api.security.crypto.BigDecimalCryptoConverter;
 import pl.srozga.gluqalc_api.security.crypto.IntegerCryptoConverter;
-import pl.srozga.gluqalc_api.security.crypto.UserGenderEnumConverter;
+import pl.srozga.gluqalc_api.security.crypto.enumeration.BmrCalculationMethodEnumConverter;
+import pl.srozga.gluqalc_api.security.crypto.enumeration.MacroCalculationStrategyEnumConverter;
+import pl.srozga.gluqalc_api.security.crypto.enumeration.UserGenderEnumConverter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -48,12 +52,19 @@ public class UserProfile {
     @Convert(converter = AttributeEncryptor.class)
     private String birthDate;
     @Convert(converter = BigDecimalCryptoConverter.class)
+
     private BigDecimal physicalActivityLevel;
     @Convert(converter = IntegerCryptoConverter.class)
     private Integer kcalGoalDifference;
     @Convert(converter = AttributeEncryptor.class)
     @Column(name = "weekly_kcal_distribution")
     private String weeklyKcalDistributionJson;
+    @Convert(converter = BigDecimalCryptoConverter.class)
+    private BigDecimal bodyFatPercentage;
+    @Convert(converter = BmrCalculationMethodEnumConverter.class)
+    private BmrCalculationMethod bmrMethod = BmrCalculationMethod.MIFFLIN_ST_JEOR;
+    @Convert(converter = MacroCalculationStrategyEnumConverter.class)
+    private MacroCalculationStrategy macroStrategy = MacroCalculationStrategy.BALANCED;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
