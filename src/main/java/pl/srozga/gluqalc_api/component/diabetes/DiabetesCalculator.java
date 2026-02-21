@@ -70,6 +70,19 @@ public class DiabetesCalculator {
         return calculateInternal(totalCarbs, totalProtein, totalFat, profile, time);
     }
 
+    public DiabetesCalcDataDto calculate(BigDecimal carbs, BigDecimal protein, BigDecimal fat, UserProfile profile, LocalTime time) {
+        if (profile == null)
+            return DiabetesCalcDataDto.empty();
+
+        return calculateInternal(
+                carbs != null ? carbs : BigDecimal.ZERO,
+                protein != null ? protein : BigDecimal.ZERO,
+                fat != null ? fat : BigDecimal.ZERO,
+                profile,
+                time
+        );
+    }
+
     private DiabetesCalcDataDto calculateInternal(BigDecimal carbs, BigDecimal protein, BigDecimal fat, UserProfile profile, LocalTime time) {
         BigDecimal cu = carbs.divide(CU_DIVISOR, 2, RoundingMode.HALF_UP);
         BigDecimal proteinKcal = protein.multiply(PROTEIN_KCAL);

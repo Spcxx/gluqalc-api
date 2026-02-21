@@ -11,6 +11,7 @@ public record ProductResponse(
         String brand,
         String barcode,
         ProductNutritionResponse nutrition,
+        InsulinDoseResponse insulinDose,
         List<ProductPortionResponse> portions,
         ProductProviderType provider
 ) {

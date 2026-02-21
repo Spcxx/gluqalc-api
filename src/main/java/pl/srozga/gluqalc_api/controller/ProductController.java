@@ -24,6 +24,8 @@ import pl.srozga.gluqalc_api.dto.response.PortionChangeResponse;
 import pl.srozga.gluqalc_api.dto.response.ProductAdminResponse;
 import pl.srozga.gluqalc_api.dto.response.ProductChangeResponse;
 import pl.srozga.gluqalc_api.dto.response.ProductResponse;
+import pl.srozga.gluqalc_api.entity.UserProfile;
+import pl.srozga.gluqalc_api.repository.UserProfileRepository;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import pl.srozga.gluqalc_api.service.ProductService;
 
@@ -39,6 +41,7 @@ import java.util.UUID;
 public class ProductController {
     private final ProductService productService;
     private final ProductMapper productMapper;
+    private final UserProfileRepository userProfileRepository;
 
     // PRODUCT ENDPOINTS
 
@@ -53,8 +56,9 @@ public class ProductController {
             ProductDto productDto = productService.createProduct(user.id(), request);
             result = productMapper.toAdminResponse(productDto);
         } else {
+            UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
             ProductDto productDto = productService.proposeProduct(user.id(), request);
-            result = productMapper.toResponse(productDto);
+            result = productMapper.toResponse(productDto, profile);
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -72,8 +76,10 @@ public class ProductController {
         Object result;
         if (user.roles().contains(UserRole.ADMIN))
             result = productMapper.toAdminResponse(productDto);
-        else
-            result = productMapper.toResponse(productDto);
+        else {
+            UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+            result = productMapper.toResponse(productDto, profile);
+        }
 
         return ResponseEntity.ok(result);
     }
@@ -95,8 +101,10 @@ public class ProductController {
         Object result;
         if (user.roles().contains(UserRole.ADMIN))
             result = productMapper.toAdminResponse(productDto);
-        else
-            result = productMapper.toResponse(productDto);
+        else {
+            UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+            result = productMapper.toResponse(productDto, profile);
+        }
 
         return ResponseEntity.ok(result);
     }
@@ -231,7 +239,8 @@ public class ProductController {
             Page<ProductAdminResponse> adminResponses = result.map(productMapper::toAdminResponse);
             return ResponseEntity.ok(adminResponses);
         } else {
-            Page<ProductResponse> responses = result.map(productMapper::toResponse);
+            UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+            Page<ProductResponse> responses = result.map(product -> productMapper.toResponse(product, profile));
             return ResponseEntity.ok(responses);
         }
     }
@@ -245,7 +254,9 @@ public class ProductController {
         ProductDto productDto = productService.importProduct(request.barcode(), user);
         if (user.roles().contains(UserRole.ADMIN))
             return ResponseEntity.ok(productMapper.toAdminResponse(productDto));
-        else
-            return ResponseEntity.ok(productMapper.toResponse(productDto));
+        else {
+            UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+            return ResponseEntity.ok(productMapper.toResponse(productDto, profile));
+        }
     }
 }

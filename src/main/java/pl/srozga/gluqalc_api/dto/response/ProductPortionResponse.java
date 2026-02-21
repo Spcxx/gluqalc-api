@@ -7,6 +7,7 @@ public record ProductPortionResponse(
         UUID id,
         String name,
         BigDecimal weightInGrams,
-        ProductNutritionResponse nutrition
+        ProductNutritionResponse nutrition,
+        InsulinDoseResponse insulinDose
 ) {
 }
