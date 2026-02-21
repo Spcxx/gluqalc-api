@@ -77,7 +77,7 @@ public class UserService {
 
         user.setDeleted(true);
         userRepository.save(user);
-        refreshTokenService.deleteRefreshTokenByUserId(user.getId());
+        refreshTokenService.deleteAllUserSessions(user.getId());
         log.info("Soft deleted user: {}", id);
     }
 

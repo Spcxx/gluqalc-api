@@ -27,7 +27,6 @@ public class JwtService {
     private static final String ROLES_CLAIM = "roles";
     private static final String EMAIL_CLAIM = "email";
     private static final String REDIS_BLACKLIST_PREFIX = "jwt:blacklist:";
-    private static final String REDIS_ACTIVE_TOKEN_PREFIX = "jwt:active:";
 
     private final Algorithm signingAlgorithm;
     private final JWTVerifier verifier;
@@ -40,32 +39,6 @@ public class JwtService {
         this.signingAlgorithm = Algorithm.HMAC256(signingSecret);
         this.verifier = JWT.require(signingAlgorithm).build();
         this.redisTemplate = stringRedisTemplate;
-    }
-
-    public String getActiveJwtToken(String userId) {
-        String key = REDIS_ACTIVE_TOKEN_PREFIX + userId;
-        String token = redisTemplate.opsForValue().get(key);
-
-        if (token == null)
-            return null;
-
-        try {
-            DecodedJWT decodedJWT = JWT.decode(token);
-            if (decodedJWT.getExpiresAtAsInstant().isBefore(Instant.now())) {
-                redisTemplate.delete(key);
-                return null;
-            }
-
-            return token;
-        } catch (Exception e) {
-            redisTemplate.delete(key);
-            return null;
-        }
-
-    }
-
-    public void saveActiveJwtToken(String userId, String token) {
-        redisTemplate.opsForValue().set(REDIS_ACTIVE_TOKEN_PREFIX + userId, token, tokenExpirationTimeMs, TimeUnit.MILLISECONDS);
     }
 
     public AuthUser resolveJwtToken(String token) {
@@ -99,18 +72,15 @@ public class JwtService {
     public void invalidateJwtToken(String token) {
         try {
             DecodedJWT decodedJWT = verifier.verify(token);
-            String userId = decodedJWT.getSubject();
 
             String redisKey = REDIS_BLACKLIST_PREFIX + token;
             Instant expirationTime = decodedJWT.getExpiresAtAsInstant();
             long timeToLive = Duration.between(Instant.now(), expirationTime).toMillis();
 
-            if (timeToLive > 0) {
+            if (timeToLive > 0)
                 redisTemplate.opsForValue().set(redisKey, "true", timeToLive, TimeUnit.MILLISECONDS);
-                redisTemplate.delete(REDIS_ACTIVE_TOKEN_PREFIX + userId);
-            }
         } catch (JWTVerificationException e) {
-            throw new TokenAuthenticationException("Invalid JWT token");
+            log.debug("Ignoring invalid/expired JWT token during invalidation: {}", e.getMessage());
         }
     }
 
@@ -126,5 +96,9 @@ public class JwtService {
                 .withIssuedAt(now)
                 .withExpiresAt(expirationTime)
                 .sign(signingAlgorithm);
+    }
+
+    public long getTokenExpirationTimeInSeconds() {
+        return tokenExpirationTimeMs / 1000;
     }
 }

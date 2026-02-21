@@ -2,6 +2,8 @@ package pl.srozga.gluqalc_api.dto.response;
 
 public record TokenResponse(
         String jwtToken,
-        String refreshToken
+        String refreshToken,
+        long expiresIn,
+        String deviceId
 ) {
 }

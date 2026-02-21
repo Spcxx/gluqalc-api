@@ -1,18 +1,18 @@
 package pl.srozga.gluqalc_api.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pl.srozga.gluqalc_api.dto.request.*;
 import pl.srozga.gluqalc_api.dto.response.TokenResponse;
 import pl.srozga.gluqalc_api.dto.response.UserResponse;
-import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import pl.srozga.gluqalc_api.service.AuthService;
 import pl.srozga.gluqalc_api.service.UserService;
+import pl.srozga.gluqalc_api.utils.IpResolver;
 
 @RestController
 @RequiredArgsConstructor
@@ -22,8 +22,8 @@ public class AuthController {
     private final UserService userService;
 
     @PostMapping("/login")
-    public TokenResponse login(@Valid @RequestBody LoginRequest loginRequest) {
-        return authService.login(loginRequest);
+    public TokenResponse login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
+        return authService.login(loginRequest, IpResolver.getClientIp(request), request.getHeader(HttpHeaders.USER_AGENT));
     }
 
     @PreAuthorize("isAnonymous()")
@@ -34,13 +34,13 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public TokenResponse refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
-        return authService.refreshToken(request.refreshToken());
+    public TokenResponse refreshToken(@Valid @RequestBody RefreshTokenRequest requestBody, HttpServletRequest request) {
+        return authService.refreshToken(requestBody.refreshToken(), IpResolver.getClientIp(request), request.getHeader(HttpHeaders.USER_AGENT));
     }
 
     @PostMapping("/google")
-    public TokenResponse loginWithGoogleApp(@Valid @RequestBody GoogleLoginRequest request) {
-        return authService.loginWithGoogle(request.idToken());
+    public TokenResponse loginWithGoogleApp(@Valid @RequestBody GoogleLoginRequest requestBody, HttpServletRequest request) {
+        return authService.loginWithGoogle(requestBody.idToken(), requestBody.deviceId(), IpResolver.getClientIp(request), request.getHeader(HttpHeaders.USER_AGENT));
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -48,9 +48,9 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader,
-            @AuthenticationPrincipal AuthUser authUser
+            @Valid @RequestBody RefreshTokenRequest requestBody
     ) {
-        authService.logout(authHeader, authUser.id());
+        authService.logout(authHeader, requestBody.refreshToken());
     }
 
     @PostMapping("/verify")

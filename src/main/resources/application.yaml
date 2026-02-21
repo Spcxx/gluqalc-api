@@ -19,6 +19,8 @@ app:
   rate-limiter:
     max-requests: 100
     time-window: 60
+  session:
+    max-devices: 5
 spring:
   application:
     name: GluQalc API

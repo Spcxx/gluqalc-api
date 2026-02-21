@@ -1,93 +1,103 @@
 package pl.srozga.gluqalc_api.security.jwt;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import pl.srozga.gluqalc_api.entity.DeviceSession;
 import pl.srozga.gluqalc_api.entity.User;
 import pl.srozga.gluqalc_api.exception.TokenAuthenticationException;
-import pl.srozga.gluqalc_api.repository.UserRepository;
+import pl.srozga.gluqalc_api.repository.DeviceSessionRepository;
 
+import java.time.Instant;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RefreshTokenService {
-    private final StringRedisTemplate redisTemplate;
-    private final UserRepository userRepository;
+    private final DeviceSessionRepository deviceSessionRepository;
 
     @Value("${app.jwt.refresh-expiration-ms}")
     private long refreshExpirationMs;
+    @Value("${app.session.max-devices}")
+    private int maxDevicesPerUser;
 
-    private static final String REDIS_REFRESH_TOKEN_PREFIX = "jwt:refresh:";
-    private static final String REDIS_USER_REFRESH_MAP_PREFIX = "jwt:user_refresh:";
+    @Transactional
+    public DeviceSession createOrUpdateDeviceSession(User user, String providedDeviceId, String ipAddress, String userAgent) {
+        String deviceId = (providedDeviceId == null || providedDeviceId.isBlank()) ? UUID.randomUUID().toString() : providedDeviceId;
+        String newRefreshToken = UUID.randomUUID().toString();
+        Instant expiresAt = Instant.now().plusMillis(refreshExpirationMs);
 
-    public String createRefreshToken(UUID userId) {
-        deleteRefreshTokenByUserId(userId);
+        DeviceSession session = deviceSessionRepository.findByUserIdAndDeviceId(user.getId(), deviceId).orElse(null);
 
-        String token = UUID.randomUUID().toString();
-        String tokenKey = REDIS_REFRESH_TOKEN_PREFIX + token;
+        if (session != null) {
+            session.setRefreshToken(newRefreshToken);
+            session.setExpiresAt(expiresAt);
+            session.setIpAddress(ipAddress);
+            session.setUserAgent(userAgent);
+            session.setLastAccessedAt(Instant.now());
+        } else {
+            long currentDevices = deviceSessionRepository.countByUserId(user.getId());
+            if (currentDevices >= maxDevicesPerUser) {
+                log.info("User {} has reached max device sessions. Deleting oldest session.", user.getEmail());
+                deviceSessionRepository.findFirstByUserIdOrderByLastAccessedAtAsc(user.getId()).ifPresent(deviceSessionRepository::delete);
+            }
 
-        redisTemplate.opsForValue().set(
-                tokenKey,
-                userId.toString(),
-                refreshExpirationMs,
-                TimeUnit.MILLISECONDS
-        );
-
-        redisTemplate.opsForValue().set(
-                REDIS_USER_REFRESH_MAP_PREFIX + userId,
-                token,
-                refreshExpirationMs,
-                TimeUnit.MILLISECONDS
-        );
-
-        return token;
-    }
-
-    public User verifyAndGetUser(String token) {
-        String tokenKey = REDIS_REFRESH_TOKEN_PREFIX + token;
-        String userIdStr = redisTemplate.opsForValue().get(tokenKey);
-
-        if (userIdStr == null)
-            throw new TokenAuthenticationException("Refresh token is invalid or expired");
-
-        UUID userId = UUID.fromString(userIdStr);
-        User user = userRepository.findByIdAndDeletedFalse(userId)
-                .orElseThrow(() -> new TokenAuthenticationException("User associated with this token does not exist"));
-
-        if (!user.isEnabled()) {
-            deleteRefreshToken(tokenKey);
-            throw new TokenAuthenticationException("User account is disabled");
-        }
-        if (user.isLocked()) {
-            deleteRefreshToken(tokenKey);
-            throw new TokenAuthenticationException("User account is locked");
+            session = DeviceSession.builder()
+                    .user(user)
+                    .deviceId(deviceId)
+                    .refreshToken(newRefreshToken)
+                    .expiresAt(expiresAt)
+                    .ipAddress(ipAddress)
+                    .userAgent(userAgent)
+                    .lastAccessedAt(Instant.now())
+                    .build();
         }
 
-        return user;
+        return deviceSessionRepository.save(session);
     }
 
+    @Transactional
+    public DeviceSession verifyAndRotateRefreshToken(String token, String ipAddress, String userAgent) {
+        DeviceSession session = deviceSessionRepository.findByRefreshToken(token)
+                .orElseThrow(() -> new TokenAuthenticationException("Refresh token is invalid or expired"));
+
+        if (session.getExpiresAt().isBefore(Instant.now())) {
+            deleteDeviceSession(session);
+            throw new TokenAuthenticationException("Refresh token expired");
+        }
+
+        User user = session.getUser();
+        if (user.isDeleted() || !user.isEnabled() || user.isLocked()) {
+            deleteDeviceSession(session);
+            throw new TokenAuthenticationException("User account not valid");
+        }
+
+        session.setRefreshToken(UUID.randomUUID().toString());
+        session.setExpiresAt(Instant.now().plusMillis(refreshExpirationMs));
+        session.setLastAccessedAt(Instant.now());
+        if (ipAddress != null)
+            session.setIpAddress(ipAddress);
+        if (userAgent != null)
+            session.setUserAgent(userAgent);
+
+        return deviceSessionRepository.save(session);
+    }
+
+    @Transactional
+    public void deleteDeviceSession(DeviceSession session) {
+        deviceSessionRepository.delete(session);
+    }
+
+    @Transactional
     public void deleteRefreshToken(String token) {
-        String tokenKey = REDIS_REFRESH_TOKEN_PREFIX + token;
-        String userIdStr = redisTemplate.opsForValue().get(tokenKey);
-
-        if (userIdStr != null) {
-            UUID userId = UUID.fromString(userIdStr);
-            redisTemplate.delete(REDIS_USER_REFRESH_MAP_PREFIX + userId);
-        }
-
-        redisTemplate.delete(tokenKey);
+        deviceSessionRepository.findByRefreshToken(token).ifPresent(this::deleteDeviceSession);
     }
 
-    public void deleteRefreshTokenByUserId(UUID userId) {
-        String userKey = REDIS_USER_REFRESH_MAP_PREFIX + userId;
-        String token = redisTemplate.opsForValue().get(userKey);
-
-        if (token != null) {
-            redisTemplate.delete(REDIS_REFRESH_TOKEN_PREFIX + token);
-        }
-        redisTemplate.delete(userKey);
+    @Transactional
+    public void deleteAllUserSessions(UUID userId) {
+        deviceSessionRepository.deleteAllByUserId(userId);
     }
 }

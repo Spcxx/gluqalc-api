@@ -15,6 +15,7 @@ import pl.srozga.gluqalc_api.common.UserRole;
 import pl.srozga.gluqalc_api.component.email.EmailVerificationTokenService;
 import pl.srozga.gluqalc_api.dto.request.LoginRequest;
 import pl.srozga.gluqalc_api.dto.response.TokenResponse;
+import pl.srozga.gluqalc_api.entity.DeviceSession;
 import pl.srozga.gluqalc_api.entity.User;
 import pl.srozga.gluqalc_api.exception.ApplicationAuthenticationException;
 import pl.srozga.gluqalc_api.exception.TokenAuthenticationException;
@@ -41,10 +42,12 @@ public class AuthService {
     private String googleClientId;
 
     @Transactional
-    public TokenResponse login(LoginRequest loginRequest) {
+    public TokenResponse login(LoginRequest loginRequest, String ipAddress, String userAgent) {
         User user = userRepository.findByEmailAndDeletedFalse(loginRequest.email())
                 .orElseThrow(() -> new ApplicationAuthenticationException("Invalid email or password"));
 
+        if (user.getProvider() != AuthProvider.LOCAL)
+            throw new ApplicationAuthenticationException("Invalid email or password");
         if (!passwordEncoder.matches(loginRequest.password(), user.getPasswordHash()))
             throw new ApplicationAuthenticationException("Invalid email or password");
         if (!user.isEnabled())
@@ -52,18 +55,27 @@ public class AuthService {
         if (user.isLocked())
             throw new ApplicationAuthenticationException("User account is locked");
 
-        return generateTokensForUser(user);
+        return generateTokensForUser(user, loginRequest.deviceId(), ipAddress, userAgent);
     }
 
     @Transactional
-    public TokenResponse refreshToken(String refreshTokenRequest) {
-        User user = refreshTokenService.verifyAndGetUser(refreshTokenRequest);
-        refreshTokenService.deleteRefreshToken(refreshTokenRequest);
-        return generateTokensForUser(user);
+    public TokenResponse refreshToken(String refreshTokenRequest, String ipAddress, String userAgent) {
+        DeviceSession session = refreshTokenService.verifyAndRotateRefreshToken(refreshTokenRequest, ipAddress, userAgent);
+
+        AuthUser authUser = AuthUser.fromEntity(session.getUser());
+        String jwt = jwtService.createJwtToken(authUser);
+        long expiresIn = jwtService.getTokenExpirationTimeInSeconds();
+
+        return new TokenResponse(
+                jwt,
+                session.getRefreshToken(),
+                expiresIn,
+                session.getDeviceId()
+        );
     }
 
     @Transactional
-    public TokenResponse loginWithGoogle(String idTokenString) {
+    public TokenResponse loginWithGoogle(String idTokenString, String deviceId, String ipAddress, String userAgent) {
         try {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
                     .setAudience(Collections.singletonList(googleClientId))
@@ -87,6 +99,8 @@ public class AuthService {
                 return userRepository.save(newUser);
             });
 
+            if (user.getProvider() != AuthProvider.GOOGLE)
+                throw new ApplicationAuthenticationException("This email is registered with a password. Please log in using your email and password");
             if (user.isLocked())
                 throw new TokenAuthenticationException("User account is locked");
             if (!user.isEnabled())
@@ -94,7 +108,7 @@ public class AuthService {
             if (user.isDeleted())
                 throw new TokenAuthenticationException("User account not found");
 
-            return generateTokensForUser(user);
+            return generateTokensForUser(user, deviceId, ipAddress, userAgent);
         } catch (IOException | GeneralSecurityException e) {
             log.error("Google authentication failed", e);
             throw new TokenAuthenticationException("Google authentication failed");
@@ -102,12 +116,13 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(String authHeader, UUID userId) {
+    public void logout(String authHeader, String refreshToken) {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String jwt = authHeader.substring(7);
             jwtService.invalidateJwtToken(jwt);
         }
-        refreshTokenService.deleteRefreshTokenByUserId(userId);
+        if (refreshToken != null && !refreshToken.isEmpty())
+            refreshTokenService.deleteRefreshToken(refreshToken);
     }
 
     @Transactional
@@ -124,18 +139,17 @@ public class AuthService {
         emailVerificationTokenService.deleteToken(token);
     }
 
-    private TokenResponse generateTokensForUser(User user) {
-        String userId = user.getId().toString();
+    private TokenResponse generateTokensForUser(User user, String providedDeviceId, String ipAddress, String userAgent) {
+        DeviceSession session = refreshTokenService.createOrUpdateDeviceSession(user, providedDeviceId, ipAddress, userAgent);
+        AuthUser authUser = AuthUser.fromEntity(user);
+        String jwt = jwtService.createJwtToken(authUser);
+        long expiresIn = jwtService.getTokenExpirationTimeInSeconds();
 
-        String jwt = jwtService.getActiveJwtToken(userId);
-
-        if (jwt == null) {
-            AuthUser authUser = AuthUser.fromEntity(user);
-            jwt = jwtService.createJwtToken(authUser);
-            jwtService.saveActiveJwtToken(userId, jwt);
-        }
-
-        String newRefreshToken = refreshTokenService.createRefreshToken(user.getId());
-        return new TokenResponse(jwt, newRefreshToken);
+        return new TokenResponse(
+                jwt,
+                session.getRefreshToken(),
+                expiresIn,
+                session.getDeviceId()
+        );
     }
 }
