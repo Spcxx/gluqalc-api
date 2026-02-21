@@ -3,6 +3,7 @@ package pl.srozga.gluqalc_api.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -362,23 +364,36 @@ public class ProductService {
 
     public Page<ProductDto> searchProductsUnified(String query, boolean quick, AuthUser user, Locale locale, Pageable pageable) {
         ProductService self = selfProvider.getObject();
-        List<ProductDto> results = new ArrayList<>(self.findLocalProductsDto(query, user.id()));
 
-        if (!quick) {
+        CompletableFuture<List<ProductDto>> localFuture = CompletableFuture.supplyAsync(
+                () -> self.findLocalProductsDto(query, user.id())
+        );
+
+        CompletableFuture<List<ProductDto>> offFuture = CompletableFuture.supplyAsync(() -> {
+            if (quick)
+                return Collections.emptyList();
+
             int requiredFromOff = Math.max(50, (int) pageable.getOffset() + pageable.getPageSize());
             try {
-                List<ProductDto> offResults = productProvider.searchProducts(query, locale, requiredFromOff);
-
-                List<String> existingBarcodes = results.stream()
-                        .map(ProductDto::barcode)
-                        .filter(Objects::nonNull)
-                        .toList();
-                offResults.stream()
-                        .filter(dto -> dto.barcode() == null || !existingBarcodes.contains(dto.barcode()))
-                        .forEach(results::add);
+                return productProvider.searchProducts(query, locale, requiredFromOff);
             } catch (Exception e) {
                 log.warn("Failed to search products from external provider", e);
+                return Collections.emptyList();
             }
+        });
+
+        List<ProductDto> results = new ArrayList<>(localFuture.join());
+        List<ProductDto> offResults = offFuture.join();
+
+        if (!offResults.isEmpty()) {
+            List<String> existingBarcodes = results.stream()
+                    .map(ProductDto::barcode)
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            offResults.stream()
+                    .filter(off -> off.barcode() != null && !existingBarcodes.contains(off.barcode()))
+                    .forEach(results::add);
         }
 
         int start = (int) pageable.getOffset();
@@ -425,6 +440,7 @@ public class ProductService {
         }
     }
 
+    @Cacheable(value = "local_search_cache", key = "#query.toLowerCase() + '_' + #userId")
     @Transactional(readOnly = true)
     public List<ProductDto> findLocalProductsDto(String query, UUID userId) {
         return productRepository.searchProducts(query, userId)

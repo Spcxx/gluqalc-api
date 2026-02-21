@@ -1,5 +1,6 @@
 package pl.srozga.gluqalc_api.dto.internal;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 public record ProductNutritionDto(
@@ -12,5 +13,5 @@ public record ProductNutritionDto(
         BigDecimal fiber,
         BigDecimal salt,
         Integer glycemicIndex
-) {
+) implements Serializable {
 }

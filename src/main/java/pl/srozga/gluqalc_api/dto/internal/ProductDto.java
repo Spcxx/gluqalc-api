@@ -2,6 +2,7 @@ package pl.srozga.gluqalc_api.dto.internal;
 
 import pl.srozga.gluqalc_api.common.ProductProviderType;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -18,5 +19,5 @@ public record ProductDto(
         Instant createdAt,
         Instant updatedAt,
         ProductProviderType source
-) {
+) implements Serializable {
 }

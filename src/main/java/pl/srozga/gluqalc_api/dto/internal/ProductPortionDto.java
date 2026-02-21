@@ -1,5 +1,6 @@
 package pl.srozga.gluqalc_api.dto.internal;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -10,5 +11,5 @@ public record ProductPortionDto(
         ProductNutritionDto nutrition,
         boolean published,
         UUID createdBy
-) {
+) implements Serializable {
 }

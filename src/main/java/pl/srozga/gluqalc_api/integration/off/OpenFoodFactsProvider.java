@@ -25,6 +25,7 @@ public class OpenFoodFactsProvider implements ProductProvider {
     public static final ProductProviderType PROVIDER = ProductProviderType.OFF;
 
     @Override
+    @Cacheable(value = "off_barcode_cache", key = "#barcode")
     public Optional<ProductDto> getProductByBarcode(String barcode) {
         try {
             OffResponse response = restClient.get()
@@ -45,9 +46,8 @@ public class OpenFoodFactsProvider implements ProductProvider {
 
     @Override
     @Cacheable(
-            value = "off_products",
-            key = "{ #query, #locale.language, #limit }",
-            unless = "#result == null || #result.isEmpty()"
+            value = "off_search_cache",
+            key = "#query.toLowerCase() + '_' + #locale.getLanguage() + '_' + #limit"
     )
     public List<ProductDto> searchProducts(String query, Locale locale, int limit) {
         String languageCode = locale.getLanguage();
@@ -96,22 +96,17 @@ public class OpenFoodFactsProvider implements ProductProvider {
         if (p.nutriments() == null)
             return null;
 
-        ProductNutritionDto nutrition;
-        if (p.nutriments() != null) {
-            nutrition = new ProductNutritionDto(
-                    p.nutriments().energyKcal(),
-                    p.nutriments().carbohydrates(),
-                    p.nutriments().sugars(),
-                    p.nutriments().fat(),
-                    p.nutriments().saturatedFat(),
-                    p.nutriments().protein(),
-                    p.nutriments().fiber(),
-                    p.nutriments().salt(),
-                    null
-            );
-        } else {
-            nutrition = new ProductNutritionDto(null, null, null, null, null, null, null, null, null);
-        }
+        ProductNutritionDto nutrition = new ProductNutritionDto(
+                p.nutriments().energyKcal(),
+                p.nutriments().carbohydrates(),
+                p.nutriments().sugars(),
+                p.nutriments().fat(),
+                p.nutriments().saturatedFat(),
+                p.nutriments().protein(),
+                p.nutriments().fiber(),
+                p.nutriments().salt(),
+                null
+        );
 
         ProductPortionDto defaultPortion = new ProductPortionDto(
                 null, "100g", new BigDecimal("100"), null, true, null

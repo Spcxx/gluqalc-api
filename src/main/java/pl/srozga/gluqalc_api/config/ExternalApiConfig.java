@@ -19,7 +19,7 @@ public class ExternalApiConfig {
     public RestClient offRestClient() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5000);
-        factory.setReadTimeout(20000);
+        factory.setReadTimeout(10000);
 
         return RestClient.builder()
                 .requestFactory(factory)
