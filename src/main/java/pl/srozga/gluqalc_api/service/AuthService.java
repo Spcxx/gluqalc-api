@@ -18,6 +18,7 @@ import pl.srozga.gluqalc_api.dto.response.TokenResponse;
 import pl.srozga.gluqalc_api.entity.DeviceSession;
 import pl.srozga.gluqalc_api.entity.User;
 import pl.srozga.gluqalc_api.exception.ApplicationAuthenticationException;
+import pl.srozga.gluqalc_api.exception.ConflictException;
 import pl.srozga.gluqalc_api.exception.TokenAuthenticationException;
 import pl.srozga.gluqalc_api.repository.UserRepository;
 import pl.srozga.gluqalc_api.security.jwt.JwtService;
@@ -46,8 +47,8 @@ public class AuthService {
         User user = userRepository.findByEmailAndDeletedFalse(loginRequest.email())
                 .orElseThrow(() -> new ApplicationAuthenticationException("Invalid email or password"));
 
-        if (user.getProvider() != AuthProvider.LOCAL)
-            throw new ApplicationAuthenticationException("Invalid email or password");
+        if (!user.getProviders().contains(AuthProvider.LOCAL))
+            throw new ApplicationAuthenticationException("This user is registered via external provider");
         if (!passwordEncoder.matches(loginRequest.password(), user.getPasswordHash()))
             throw new ApplicationAuthenticationException("Invalid email or password");
         if (!user.isEnabled())
@@ -90,7 +91,7 @@ public class AuthService {
                 log.info("Registering new user via Google: {}", email);
                 User newUser = User.builder()
                         .email(email)
-                        .provider(AuthProvider.GOOGLE)
+                        .providers(Set.of(AuthProvider.GOOGLE))
                         .roles(Set.of(UserRole.USER))
                         .enabled(true)
                         .locked(false)
@@ -99,8 +100,8 @@ public class AuthService {
                 return userRepository.save(newUser);
             });
 
-            if (user.getProvider() != AuthProvider.GOOGLE)
-                throw new ApplicationAuthenticationException("This email is registered with a password. Please log in using your email and password");
+            if (!user.getProviders().contains(AuthProvider.GOOGLE))
+                throw new ApplicationAuthenticationException("This email is registered via different provider");
             if (user.isLocked())
                 throw new TokenAuthenticationException("User account is locked");
             if (!user.isEnabled())
@@ -137,6 +138,45 @@ public class AuthService {
         user.setEnabled(true);
         userRepository.save(user);
         emailVerificationTokenService.deleteToken(token);
+    }
+
+    @Transactional
+    public void linkGoogleAccount(String idTokenString, UUID userId) {
+        try {
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+            if (idToken == null)
+                throw new TokenAuthenticationException("Invalid Google ID token");
+
+            String email = idToken.getPayload().getEmail();
+            User user = userRepository.findByIdAndDeletedFalse(userId)
+                    .orElseThrow(() -> new ApplicationAuthenticationException("User not found"));
+
+            if (!user.getEmail().equalsIgnoreCase(email))
+                throw new ApplicationAuthenticationException("Google email does not match profile email");
+            if (user.getProviders().contains(AuthProvider.GOOGLE))
+                throw new ConflictException("Google account is already linked");
+
+            user.getProviders().add(AuthProvider.GOOGLE);
+            userRepository.save(user);
+        } catch (IOException | GeneralSecurityException e) {
+            log.error("Google linking failed", e);
+            throw new TokenAuthenticationException("Google authentication failed");
+        }
+    }
+
+    @Transactional
+    public void linkLocalAccount(String newPassword, UUID userId) {
+        User user = userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new ApplicationAuthenticationException("User not found"));
+        if (user.getProviders().contains(AuthProvider.LOCAL))
+            throw new ConflictException("Password is already set");
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.getProviders().add(AuthProvider.LOCAL);
+        userRepository.save(user);
     }
 
     private TokenResponse generateTokensForUser(User user, String providedDeviceId, String ipAddress, String userAgent) {

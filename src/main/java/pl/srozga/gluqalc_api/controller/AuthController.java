@@ -6,10 +6,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pl.srozga.gluqalc_api.dto.request.*;
 import pl.srozga.gluqalc_api.dto.response.TokenResponse;
 import pl.srozga.gluqalc_api.dto.response.UserResponse;
+import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import pl.srozga.gluqalc_api.service.AuthService;
 import pl.srozga.gluqalc_api.service.UserService;
 import pl.srozga.gluqalc_api.utils.IpResolver;
@@ -57,5 +59,19 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
         authService.verifyEmail(request.code());
+    }
+
+    @PostMapping("/link/local")
+    @PreAuthorize("isAuthenticated()")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void linkLocalAccount(@Valid @RequestBody SetPasswordRequest request, @AuthenticationPrincipal AuthUser authUser) {
+        authService.linkLocalAccount(request.password(), authUser.id());
+    }
+
+    @PostMapping("/link/google")
+    @PreAuthorize("isAuthenticated()")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void linkGoogleAccount(@Valid @RequestBody GoogleLoginRequest request, @AuthenticationPrincipal AuthUser authUser) {
+        authService.linkGoogleAccount(request.idToken(), authUser.id());
     }
 }

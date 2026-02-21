@@ -43,10 +43,12 @@ public class User {
     @Builder.Default
     private Set<UserRole> roles = new HashSet<>();
 
-    @Builder.Default
+    @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AuthProvider provider = AuthProvider.LOCAL;
+    @CollectionTable(name = "user_providers", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "provider", nullable = false)
+    @Builder.Default
+    private Set<AuthProvider> providers = new HashSet<>();
 
     @Builder.Default
     @Column(nullable = false)

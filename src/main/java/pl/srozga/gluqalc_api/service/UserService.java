@@ -41,7 +41,7 @@ public class UserService {
                 .email(registerRequest.email())
                 .passwordHash(passwordEncoder.encode(registerRequest.password()))
                 .roles(Set.of(UserRole.USER))
-                .provider(AuthProvider.LOCAL)
+                .providers(Set.of(AuthProvider.LOCAL))
                 .enabled(false)
                 .locked(false)
                 .build();
@@ -123,7 +123,7 @@ public class UserService {
                 user.getId(),
                 user.getEmail(),
                 user.getRoles(),
-                user.getProvider(),
+                user.getProviders(),
                 user.isEnabled(),
                 user.isLocked(),
                 user.isDeleted(),

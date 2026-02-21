@@ -11,7 +11,7 @@ public record UserAdminResponse(
         UUID id,
         String email,
         Set<UserRole> roles,
-        AuthProvider provider,
+        Set<AuthProvider> provider,
         boolean enabled,
         boolean locked,
         boolean deleted,
