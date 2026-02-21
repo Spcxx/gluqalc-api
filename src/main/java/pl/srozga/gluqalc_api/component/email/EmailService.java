@@ -24,29 +24,38 @@ public class EmailService {
 
     @Async
     public void sendVerificationEmail(String to, String token) {
+        sendEmail(to, "Email Verification Code", "Use the code below to verify your email address:", token);
+    }
+
+    @Async
+    public void sendPasswordResetEmail(String to, String token) {
+        sendEmail(to, "Password Reset Code", "Use the code below to reset your password:", token);
+    }
+
+    private void sendEmail(String to, String subject, String message, String token) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
 
             String htmlContent = String.format("""
                     <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-                          <h2 style="color: #333;">E-mail verification</h2>
-                          <p style="color: #555;">Use the code below to verify your account:</p>
+                          <h2 style="color: #333;">%s</h2>
+                          <p style="color: #555;">%s</p>
                           <h1 style="color: #007BFF; letter-spacing: 5px; font-size: 32px; background: #f4f4f4; display: inline-block; padding: 10px 20px; border-radius: 8px;">%s</h1>
                           <p style="color: #777; font-size: 12px; margin-top: 20px;">This code is valid for 15 minutes.</p>
                           <p style="color: #777; font-size: 10px; margin-top: 10px;">If you did not request this email, please ignore it.</p>
                     </div>
-                    """, token);
+                    """, subject, message, token);
 
             helper.setText(htmlContent, true);
             helper.setTo(to);
-            helper.setSubject("E-mail verification code - GluQalc");
+            helper.setSubject(subject);
             helper.setFrom(emailFrom);
 
             mailSender.send(mimeMessage);
-            log.info("Sent verification email to {}", to);
+            log.info("Sent email to {}", to);
         } catch (MessagingException e) {
-            log.error("Failed to send verification email to {}: {}", to, e.getMessage());
+            log.error("Failed to send email to {}: {}", to, e.getMessage());
         }
     }
 }

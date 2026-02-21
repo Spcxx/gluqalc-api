@@ -9,6 +9,7 @@ import pl.srozga.gluqalc_api.common.AuthProvider;
 import pl.srozga.gluqalc_api.common.UserRole;
 import pl.srozga.gluqalc_api.component.email.EmailService;
 import pl.srozga.gluqalc_api.component.email.EmailVerificationTokenService;
+import pl.srozga.gluqalc_api.dto.request.PasswordResetConfirmRequest;
 import pl.srozga.gluqalc_api.dto.request.RegisterRequest;
 import pl.srozga.gluqalc_api.dto.response.DeviceSessionResponse;
 import pl.srozga.gluqalc_api.dto.response.UserAdminResponse;
@@ -16,6 +17,7 @@ import pl.srozga.gluqalc_api.dto.response.UserResponse;
 import pl.srozga.gluqalc_api.entity.User;
 import pl.srozga.gluqalc_api.exception.ConflictException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
+import pl.srozga.gluqalc_api.exception.TokenAuthenticationException;
 import pl.srozga.gluqalc_api.repository.DeviceSessionRepository;
 import pl.srozga.gluqalc_api.repository.UserRepository;
 import pl.srozga.gluqalc_api.security.jwt.JwtService;
@@ -144,6 +146,33 @@ public class UserService {
         }
 
         log.info("Revoked session for device {} of user {} by user {}", targetDeviceId, targetUserId, currentUser.id());
+    }
+
+    @Transactional
+    public void initiatePasswordReset(String email) {
+        User user = userRepository.findByEmailAndDeletedFalse(email)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        String token = verificationTokenService.createPasswordResetToken(user.getId());
+        emailService.sendPasswordResetEmail(user.getEmail(), token);
+    }
+
+    @Transactional
+    public void completePasswordReset(PasswordResetConfirmRequest request) {
+        UUID userId = verificationTokenService.validatePasswordResetToken(request.code());
+        User user = userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        if (!user.getEmail().equals(request.email())) {
+            throw new TokenAuthenticationException("Invalid email for this reset code");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        refreshTokenService.deleteAllUserSessions(user.getId());
+        verificationTokenService.deletePasswordResetToken(request.code());
+
+        log.info("Password successfully reset for user: {}", user.getEmail());
     }
 
     private UserResponse mapToResponse(User user) {

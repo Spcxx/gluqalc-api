@@ -8,6 +8,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pl.srozga.gluqalc_api.common.UserRole;
+import pl.srozga.gluqalc_api.dto.request.PasswordResetConfirmRequest;
+import pl.srozga.gluqalc_api.dto.request.PasswordResetRequest;
 import pl.srozga.gluqalc_api.dto.request.RoleRequest;
 import pl.srozga.gluqalc_api.dto.response.DeviceSessionResponse;
 import pl.srozga.gluqalc_api.dto.response.UserAdminResponse;
@@ -96,5 +98,17 @@ public class UserController {
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader
     ) {
         userService.revokeDeviceSession(id, deviceId, authUser, authHeader);
+    }
+
+    @PostMapping("/reset-password/request")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void requestPasswordReset(@Valid @RequestBody PasswordResetRequest passwordResetRequest) {
+        userService.initiatePasswordReset(passwordResetRequest.email());
+    }
+
+    @PostMapping("/reset-password/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest passwordResetConfirmRequest) {
+        userService.completePasswordReset(passwordResetConfirmRequest);
     }
 }
