@@ -152,6 +152,9 @@ public class UserService {
     public void initiatePasswordReset(String email) {
         User user = userRepository.findByEmailAndDeletedFalse(email)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+        if (!user.getProviders().contains(AuthProvider.LOCAL)) {
+            throw new ConflictException("Password reset is not available for users registered via external providers");
+        }
 
         String token = verificationTokenService.createPasswordResetToken(user.getId());
         emailService.sendPasswordResetEmail(user.getEmail(), token);
