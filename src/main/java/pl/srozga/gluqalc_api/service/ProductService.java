@@ -360,23 +360,25 @@ public class ProductService {
         log.info("Portion change {} approved and applied to portion {}", changeId, portion.getId());
     }
 
-    public Page<ProductDto> searchProductsUnified(String query, AuthUser user, Locale locale, Pageable pageable) {
+    public Page<ProductDto> searchProductsUnified(String query, boolean quick, AuthUser user, Locale locale, Pageable pageable) {
         ProductService self = selfProvider.getObject();
         List<ProductDto> results = new ArrayList<>(self.findLocalProductsDto(query, user.id()));
 
-        int requiredFromOff = Math.max(50, (int) pageable.getOffset() + pageable.getPageSize());
-        try {
-            List<ProductDto> offResults = productProvider.searchProducts(query, locale, requiredFromOff);
+        if (!quick) {
+            int requiredFromOff = Math.max(50, (int) pageable.getOffset() + pageable.getPageSize());
+            try {
+                List<ProductDto> offResults = productProvider.searchProducts(query, locale, requiredFromOff);
 
-            List<String> existingBarcodes = results.stream()
-                    .map(ProductDto::barcode)
-                    .filter(Objects::nonNull)
-                    .toList();
-            offResults.stream()
-                    .filter(dto -> dto.barcode() == null || !existingBarcodes.contains(dto.barcode()))
-                    .forEach(results::add);
-        } catch (Exception e) {
-            log.warn("Failed to search products from external provider", e);
+                List<String> existingBarcodes = results.stream()
+                        .map(ProductDto::barcode)
+                        .filter(Objects::nonNull)
+                        .toList();
+                offResults.stream()
+                        .filter(dto -> dto.barcode() == null || !existingBarcodes.contains(dto.barcode()))
+                        .forEach(results::add);
+            } catch (Exception e) {
+                log.warn("Failed to search products from external provider", e);
+            }
         }
 
         int start = (int) pageable.getOffset();

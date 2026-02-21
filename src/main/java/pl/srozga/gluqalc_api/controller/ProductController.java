@@ -221,11 +221,12 @@ public class ProductController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<?>> searchUnified(
             @Size(min = 3, max = 64) @RequestParam String q,
+            @RequestParam(defaultValue = "false") boolean quick,
             @AuthenticationPrincipal AuthUser user,
             Locale locale,
             @PageableDefault(size = 20) Pageable pageable
     ) {
-        Page<ProductDto> result = productService.searchProductsUnified(q, user, locale, pageable);
+        Page<ProductDto> result = productService.searchProductsUnified(q, quick, user, locale, pageable);
         if (user.roles().contains(UserRole.ADMIN)) {
             Page<ProductAdminResponse> adminResponses = result.map(productMapper::toAdminResponse);
             return ResponseEntity.ok(adminResponses);
