@@ -54,38 +54,34 @@ public class OpenFoodFactsProvider implements ProductProvider {
         if (languageCode.isEmpty())
             languageCode = "en";
 
-        try {
-            String finalLanguageCode = languageCode.toLowerCase();
+        String finalLanguageCode = languageCode.toLowerCase();
 
-            OffSearchResponse response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/cgi/search.pl")
-                            .queryParam("search_terms", query)
-                            .queryParam("search_simple", "1")
-                            .queryParam("action", "process")
-                            .queryParam("json", "1")
-                            .queryParam("page_size", limit)
-                            .queryParam("lc", finalLanguageCode)
-                            .queryParam("sort_by", "unique_scans_n")
-                            .queryParam("fields", "code,product_name,brands,nutriments")
-                            .build()
-                    ).retrieve()
-                    .body(OffSearchResponse.class);
+        OffSearchResponse response = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/cgi/search.pl")
+                        .queryParam("search_terms", query)
+                        .queryParam("search_simple", "1")
+                        .queryParam("action", "process")
+                        .queryParam("json", "1")
+                        .queryParam("sort_by", "unique_scans_n")
+                        .queryParam("lc", finalLanguageCode)
+                        .queryParam("cc", finalLanguageCode)
+                        .queryParam("page_size", limit)
+                        .queryParam("fields", "code,product_name,brands,nutriments")
+                        .build()
+                ).retrieve()
+                .body(OffSearchResponse.class);
 
-            if (response == null || response.products() == null)
-                return Collections.emptyList();
-
-            return response.products().stream()
-                    .map(p -> {
-                        String effectiveBarcode = p.code() != null ? p.code() : p._id();
-                        return mapInternal(p, effectiveBarcode);
-                    })
-                    .filter(Objects::nonNull)
-                    .toList();
-        } catch (Exception e) {
-            log.warn("Failed to search products from OpenFoodFacts for query {}: {}", query, e.getMessage());
+        if (response == null || response.products() == null)
             return Collections.emptyList();
-        }
+
+        return response.products().stream()
+                .map(p -> {
+                    String effectiveBarcode = p.code() != null ? p.code() : p._id();
+                    return mapInternal(p, effectiveBarcode);
+                })
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     private ProductDto mapInternal(OffProduct p, String barcode) {
