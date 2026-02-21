@@ -10,13 +10,17 @@ import pl.srozga.gluqalc_api.common.UserRole;
 import pl.srozga.gluqalc_api.component.email.EmailService;
 import pl.srozga.gluqalc_api.component.email.EmailVerificationTokenService;
 import pl.srozga.gluqalc_api.dto.request.RegisterRequest;
+import pl.srozga.gluqalc_api.dto.response.DeviceSessionResponse;
 import pl.srozga.gluqalc_api.dto.response.UserAdminResponse;
 import pl.srozga.gluqalc_api.dto.response.UserResponse;
 import pl.srozga.gluqalc_api.entity.User;
 import pl.srozga.gluqalc_api.exception.ConflictException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
+import pl.srozga.gluqalc_api.repository.DeviceSessionRepository;
 import pl.srozga.gluqalc_api.repository.UserRepository;
+import pl.srozga.gluqalc_api.security.jwt.JwtService;
 import pl.srozga.gluqalc_api.security.jwt.RefreshTokenService;
+import pl.srozga.gluqalc_api.security.principal.AuthUser;
 
 import java.util.List;
 import java.util.Set;
@@ -31,6 +35,8 @@ public class UserService {
     private final EmailVerificationTokenService verificationTokenService;
     private final EmailService emailService;
     private final RefreshTokenService refreshTokenService;
+    private final DeviceSessionRepository deviceSessionRepository;
+    private final JwtService jwtService;
 
     @Transactional
     public UserResponse createUser(RegisterRequest registerRequest) {
@@ -108,6 +114,36 @@ public class UserService {
         user.getRoles().remove(role);
         userRepository.save(user);
         log.info("Removed role {} from user {}", role, id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeviceSessionResponse> getUserSessions(UUID userId) {
+        userRepository.findByIdAndDeletedFalse(userId).orElseThrow(() -> new NotFoundException("User not found"));
+
+        return deviceSessionRepository.findAllByUserId(userId).stream()
+                .map(session -> new DeviceSessionResponse(
+                        session.getDeviceId(),
+                        session.getIpAddress(),
+                        session.getUserAgent(),
+                        session.getLastAccessedAt(),
+                        session.getExpiresAt()
+                ))
+                .toList();
+    }
+
+    @Transactional
+    public void revokeDeviceSession(UUID targetUserId, String targetDeviceId, AuthUser currentUser, String authHeader) {
+        deviceSessionRepository.deleteByUserIdAndDeviceId(targetUserId, targetDeviceId);
+
+        boolean isDeletingOwnCurrentSession = targetUserId.equals(currentUser.id())
+                && targetDeviceId.equals(currentUser.deviceId());
+
+        if (isDeletingOwnCurrentSession && authHeader != null && authHeader.startsWith("Bearer ")) {
+            String jwt = authHeader.substring(7);
+            jwtService.invalidateJwtToken(jwt);
+        }
+
+        log.info("Revoked session for device {} of user {} by user {}", targetDeviceId, targetUserId, currentUser.id());
     }
 
     private UserResponse mapToResponse(User user) {

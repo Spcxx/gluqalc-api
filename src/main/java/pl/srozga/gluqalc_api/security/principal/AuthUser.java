@@ -20,7 +20,8 @@ public record AuthUser(
         Set<UserRole> roles,
         @Nullable PasswordHashWrapper passwordHash,
         boolean enabled,
-        boolean locked
+        boolean locked,
+        @Nullable String deviceId
 ) implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -71,7 +72,8 @@ public record AuthUser(
                 new java.util.HashSet<>(user.getRoles()),
                 user.getPasswordHash() != null ? new PasswordHashWrapper(user.getPasswordHash()) : null,
                 user.isEnabled(),
-                user.isLocked()
+                user.isLocked(),
+                null
         );
     }
 }

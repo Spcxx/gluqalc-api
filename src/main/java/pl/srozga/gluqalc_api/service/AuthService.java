@@ -64,7 +64,7 @@ public class AuthService {
         DeviceSession session = refreshTokenService.verifyAndRotateRefreshToken(refreshTokenRequest, ipAddress, userAgent);
 
         AuthUser authUser = AuthUser.fromEntity(session.getUser());
-        String jwt = jwtService.createJwtToken(authUser);
+        String jwt = jwtService.createJwtToken(authUser, session.getDeviceId());
         long expiresIn = jwtService.getTokenExpirationTimeInSeconds();
 
         return new TokenResponse(
@@ -182,7 +182,7 @@ public class AuthService {
     private TokenResponse generateTokensForUser(User user, String providedDeviceId, String ipAddress, String userAgent) {
         DeviceSession session = refreshTokenService.createOrUpdateDeviceSession(user, providedDeviceId, ipAddress, userAgent);
         AuthUser authUser = AuthUser.fromEntity(user);
-        String jwt = jwtService.createJwtToken(authUser);
+        String jwt = jwtService.createJwtToken(authUser, session.getDeviceId());
         long expiresIn = jwtService.getTokenExpirationTimeInSeconds();
 
         return new TokenResponse(
