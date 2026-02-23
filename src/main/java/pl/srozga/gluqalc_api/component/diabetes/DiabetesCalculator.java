@@ -7,13 +7,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import pl.srozga.gluqalc_api.common.InsulinFatProteinStrategy;
 import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
-import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.response.MealEntryResponse;
 import pl.srozga.gluqalc_api.entity.MealEntry;
 import pl.srozga.gluqalc_api.entity.UserProfile;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalTime;
 import java.util.List;
@@ -30,7 +28,7 @@ public class DiabetesCalculator {
     private static final BigDecimal FPU_DIVISOR = new BigDecimal("100");
     private static final BigDecimal PROTEIN_KCAL = new BigDecimal("4");
     private static final BigDecimal FAT_KCAL = new BigDecimal("9");
-    private static final BigDecimal MIN_EXTENDED_DOSE_THRESHOLD = new BigDecimal("1");
+    private static final BigDecimal MIN_EXTENDED_DOSE_THRESHOLD = new BigDecimal("0.5");
 
     public DiabetesCalcDataDto calculateForMeal(MealEntry entry, UserProfile profile, LocalTime time) {
         if (entry == null)
@@ -47,7 +45,9 @@ public class DiabetesCalculator {
         if (entry.getFat() != null)
             totalFat = entry.getFat();
 
-        return calculateInternal(totalCarbs, totalProtein, totalFat, profile, time);
+        Integer gi = entry.getGlycemicIndex();
+
+        return calculateInternal(totalCarbs, totalProtein, totalFat, BigDecimal.valueOf(gi), profile, time);
     }
 
     public DiabetesCalcDataDto calculateForCategory(List<MealEntryResponse> entries, UserProfile profile, LocalTime time) {
@@ -58,19 +58,34 @@ public class DiabetesCalculator {
         BigDecimal totalProtein = BigDecimal.ZERO;
         BigDecimal totalFat = BigDecimal.ZERO;
 
+        BigDecimal weightedGiSum = BigDecimal.ZERO;
+        BigDecimal carbsWithGi = BigDecimal.ZERO;
+
         for (MealEntryResponse entry : entries) {
-            if (entry.nutrition().carbohydrates() != null)
-                totalCarbs = totalCarbs.add(entry.nutrition().carbohydrates());
+            BigDecimal carbs = entry.nutrition().carbohydrates() != null ? entry.nutrition().carbohydrates() : BigDecimal.ZERO;
+            totalCarbs = totalCarbs.add(carbs);
+
             if (entry.nutrition().protein() != null)
                 totalProtein = totalProtein.add(entry.nutrition().protein());
             if (entry.nutrition().fat() != null)
                 totalFat = totalFat.add(entry.nutrition().fat());
+
+            Integer gi = entry.nutrition().glycemicIndex();
+            if (gi != null && carbs.compareTo(BigDecimal.ZERO) > 0) {
+                weightedGiSum = weightedGiSum.add(carbs.multiply(BigDecimal.valueOf(gi)));
+                carbsWithGi = carbsWithGi.add(carbs);
+            }
         }
 
-        return calculateInternal(totalCarbs, totalProtein, totalFat, profile, time);
+        BigDecimal averageGi = null;
+        if (carbsWithGi.compareTo(BigDecimal.ZERO) > 0) {
+            averageGi = weightedGiSum.divide(carbsWithGi, 0, RoundingMode.HALF_UP);
+        }
+
+        return calculateInternal(totalCarbs, totalProtein, totalFat, averageGi, profile, time);
     }
 
-    public DiabetesCalcDataDto calculate(BigDecimal carbs, BigDecimal protein, BigDecimal fat, UserProfile profile, LocalTime time) {
+    public DiabetesCalcDataDto calculate(BigDecimal carbs, BigDecimal protein, BigDecimal fat, BigDecimal glycemicIndex, UserProfile profile, LocalTime time) {
         if (profile == null)
             return DiabetesCalcDataDto.empty();
 
@@ -78,12 +93,13 @@ public class DiabetesCalculator {
                 carbs != null ? carbs : BigDecimal.ZERO,
                 protein != null ? protein : BigDecimal.ZERO,
                 fat != null ? fat : BigDecimal.ZERO,
+                glycemicIndex != null ? glycemicIndex : BigDecimal.ZERO,
                 profile,
                 time
         );
     }
 
-    private DiabetesCalcDataDto calculateInternal(BigDecimal carbs, BigDecimal protein, BigDecimal fat, UserProfile profile, LocalTime time) {
+    private DiabetesCalcDataDto calculateInternal(BigDecimal carbs, BigDecimal protein, BigDecimal fat, BigDecimal glycemicIndex, UserProfile profile, LocalTime time) {
         BigDecimal cu = carbs.divide(CU_DIVISOR, 2, RoundingMode.HALF_UP);
         BigDecimal proteinKcal = protein.multiply(PROTEIN_KCAL);
         BigDecimal fatKcal = fat.multiply(FAT_KCAL);
@@ -97,7 +113,7 @@ public class DiabetesCalculator {
 
         BigDecimal carbDose = cu.multiply(icr).setScale(2, RoundingMode.HALF_UP);
 
-        return calculateDoseAndDuration(cu, fpu, carbDose, ifpRatio, profile.getIfpStrategy());
+        return calculateDoseAndDuration(cu, fpu, carbDose, ifpRatio, glycemicIndex, profile.getIfpStrategy());
     }
 
     private DiabetesCalcDataDto calculateDoseAndDuration(
@@ -105,11 +121,11 @@ public class DiabetesCalculator {
             BigDecimal fpu,
             BigDecimal carbDose,
             BigDecimal ifpRatio,
+            BigDecimal glycemicIndex,
             InsulinFatProteinStrategy strategy
     ) {
         BigDecimal fatProteinDose = BigDecimal.ZERO;
         int durationMinutes = 0;
-        String description = "";
 
         switch (strategy) {
             case WBT_STANDARD:
@@ -122,7 +138,6 @@ public class DiabetesCalculator {
                 } else {
                     durationMinutes = 0;
                 }
-                description = "Standard Warsaw FPU Dose based on caloric content (100kcal unit). Time is FPU-based plus 2h.";
                 break;
 
             case PANKOWSKA_ALGORITHM:
@@ -142,7 +157,6 @@ public class DiabetesCalculator {
                 else
                     durationMinutes = 480; // 8h
 
-                description = "Pankowska Algorithm - strict duration based on FPU.";
                 break;
 
             case FPU_STANDARD:
@@ -150,7 +164,6 @@ public class DiabetesCalculator {
                 // time: standard 3-4h
                 fatProteinDose = fpu.multiply(ifpRatio);
                 durationMinutes = (fpu.doubleValue() > 0) ? 240 : 0;
-                description = "FPU: International Fat-Protein Unit method.";
                 break;
 
             case PERCENTAGE_ADDON:
@@ -158,24 +171,22 @@ public class DiabetesCalculator {
                 // time: standard 3h or based on carb dose
                 fatProteinDose = carbDose.multiply(ifpRatio);
                 durationMinutes = (fatProteinDose.compareTo(BigDecimal.ZERO) > 0) ? 180 : 0;
-                description = "Percentage Add-on: Extra insulin calculated as percentage of carb dose.";
                 break;
 
             case NONE:
             default:
-                description = "No strategy selected.";
                 break;
         }
 
         if (fatProteinDose.compareTo(MIN_EXTENDED_DOSE_THRESHOLD) < 0) {
-            if (fatProteinDose.compareTo(BigDecimal.ZERO) > 0)
-                description += " (Extended dose < 0.5j ignored)";
             fatProteinDose = BigDecimal.ZERO;
             durationMinutes = 0;
         }
 
         BigDecimal totalDose = carbDose.add(fatProteinDose).setScale(2, RoundingMode.HALF_UP);
         fatProteinDose = fatProteinDose.setScale(2, RoundingMode.HALF_UP);
+
+        String description = generateTherapeuticAdvice(carbDose, fatProteinDose, durationMinutes, glycemicIndex);
 
         return new DiabetesCalcDataDto(
                 cu.setScale(1, RoundingMode.HALF_UP),
@@ -209,7 +220,43 @@ public class DiabetesCalculator {
         }
     }
 
-    private BigDecimal safeMultiply(BigDecimal val, BigDecimal ratio) {
-        return val != null ? val.multiply(ratio) : BigDecimal.ZERO;
+    private String generateTherapeuticAdvice(BigDecimal carbDose, BigDecimal extendedDose, int durationMinutes, BigDecimal gi) {
+        StringBuilder advice = new StringBuilder();
+
+        if (gi != null && gi.compareTo(BigDecimal.ZERO) > 0) {
+            if (gi.compareTo(new BigDecimal("70")) >= 0) {
+                advice.append("High Glycemic Index: Pre-bolus is recommended (15-20 min before eating).");
+            } else if (gi.compareTo(new BigDecimal("55")) <= 0) {
+                advice.append("Low Glycemic Index: Bolus at meal start is recommended or split the carb dose.");
+            } else {
+                advice.append("Medium Glycemic Index: Use standard bolus timing (5-10 min before eating).");
+            }
+        }
+
+        boolean hasCarbs = carbDose.compareTo(BigDecimal.ZERO) > 0;
+        boolean hasExtended = extendedDose.compareTo(BigDecimal.ZERO) > 0;
+
+        if (!advice.isEmpty())
+            advice.append(" ");
+        if (hasCarbs && hasExtended) {
+            int hours = durationMinutes / 60;
+            int mins = durationMinutes % 60;
+            String timeStr = mins > 0 ? String.format("%dh %dmin", hours, mins) : String.format("%dh", hours);
+
+            advice.append(String.format("Use Dual/Multiwave Bolus: Give %sU immediately, and extend %sU over %s.",
+                    carbDose, extendedDose, timeStr));
+        } else if (hasExtended) {
+            int hours = durationMinutes / 60;
+            int mins = durationMinutes % 60;
+            String timeStr = mins > 0 ? String.format("%dh %dmin", hours, mins) : String.format("%dh", hours);
+
+            advice.append(String.format("Use Square/Extended Bolus: %sU over %s.", extendedDose, timeStr));
+        } else if (hasCarbs) {
+            advice.append("Normal bolus is sufficient.");
+        } else {
+            advice.append("No insulin required for this meal.");
+        }
+
+        return advice.toString().trim();
     }
 }

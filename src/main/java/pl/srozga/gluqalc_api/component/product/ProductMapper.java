@@ -14,6 +14,7 @@ import pl.srozga.gluqalc_api.dto.response.*;
 import pl.srozga.gluqalc_api.entity.Product;
 import pl.srozga.gluqalc_api.entity.UserProfile;
 
+import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -137,6 +138,7 @@ public class ProductMapper {
                 nutrition.carbohydrates(),
                 nutrition.protein(),
                 nutrition.fat(),
+                BigDecimal.valueOf(nutrition.glycemicIndex()),
                 profile,
                 time
         );
