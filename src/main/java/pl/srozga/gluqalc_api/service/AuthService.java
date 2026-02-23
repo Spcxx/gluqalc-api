@@ -38,6 +38,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final EmailVerificationTokenService emailVerificationTokenService;
+    private final ConsentService consentService;
 
     @Value("${app.google.client-id}")
     private String googleClientId;
@@ -62,8 +63,9 @@ public class AuthService {
     @Transactional
     public TokenResponse refreshToken(String refreshTokenRequest, String ipAddress, String userAgent) {
         DeviceSession session = refreshTokenService.verifyAndRotateRefreshToken(refreshTokenRequest, ipAddress, userAgent);
+        boolean consentsPending = consentService.hasPendingRequiredConsents(session.getUser().getId());
 
-        AuthUser authUser = AuthUser.fromEntity(session.getUser());
+        AuthUser authUser = AuthUser.fromEntity(session.getUser(), consentsPending);
         String jwt = jwtService.createJwtToken(authUser, session.getDeviceId());
         long expiresIn = jwtService.getTokenExpirationTimeInSeconds();
 
@@ -181,7 +183,8 @@ public class AuthService {
 
     private TokenResponse generateTokensForUser(User user, String providedDeviceId, String ipAddress, String userAgent) {
         DeviceSession session = refreshTokenService.createOrUpdateDeviceSession(user, providedDeviceId, ipAddress, userAgent);
-        AuthUser authUser = AuthUser.fromEntity(user);
+        boolean consentsPending = consentService.hasPendingRequiredConsents(user.getId());
+        AuthUser authUser = AuthUser.fromEntity(user, consentsPending);
         String jwt = jwtService.createJwtToken(authUser, session.getDeviceId());
         long expiresIn = jwtService.getTokenExpirationTimeInSeconds();
 

@@ -21,7 +21,8 @@ public record AuthUser(
         @Nullable PasswordHashWrapper passwordHash,
         boolean enabled,
         boolean locked,
-        @Nullable String deviceId
+        @Nullable String deviceId,
+        boolean consentsPending
 ) implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -65,7 +66,7 @@ public record AuthUser(
         }
     }
 
-    public static AuthUser fromEntity(User user) {
+    public static AuthUser fromEntity(User user, boolean consentsPending) {
         return new AuthUser(
                 user.getId(),
                 user.getEmail(),
@@ -73,7 +74,8 @@ public record AuthUser(
                 user.getPasswordHash() != null ? new PasswordHashWrapper(user.getPasswordHash()) : null,
                 user.isEnabled(),
                 user.isLocked(),
-                null
+                null,
+                consentsPending
         );
     }
 }

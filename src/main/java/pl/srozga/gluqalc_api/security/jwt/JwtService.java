@@ -27,6 +27,7 @@ public class JwtService {
     private static final String ROLES_CLAIM = "roles";
     private static final String EMAIL_CLAIM = "email";
     private static final String DEVICE_ID_CLAIM = "deviceId";
+    private static final String CONSENT_PENDING_CLAIM = "consentPending";
     private static final String REDIS_BLACKLIST_PREFIX = "jwt:blacklist:";
 
     private final Algorithm signingAlgorithm;
@@ -53,6 +54,10 @@ public class JwtService {
             String userId = decodedJWT.getSubject();
             String email = decodedJWT.getClaim(EMAIL_CLAIM).asString();
             String deviceId = decodedJWT.getClaim(DEVICE_ID_CLAIM).asString();
+
+            Boolean isConsentPendingClaim = decodedJWT.getClaim(CONSENT_PENDING_CLAIM).asBoolean();
+            boolean consentPending = isConsentPendingClaim != null ? isConsentPendingClaim : true;
+
             Set<UserRole> roles = decodedJWT.getClaim(ROLES_CLAIM).asList(String.class).stream().map(roleName -> {
                 try {
                     return UserRole.valueOf(roleName);
@@ -64,7 +69,7 @@ public class JwtService {
                     .filter(Objects::nonNull)
                     .collect(java.util.stream.Collectors.toSet());
 
-            return new AuthUser(UUID.fromString(userId), email, roles, null, true, false, deviceId);
+            return new AuthUser(UUID.fromString(userId), email, roles, null, true, false, deviceId, consentPending);
         } catch (JWTVerificationException e) {
             log.debug("JWT verification failed: {}", e.getMessage());
             throw new TokenAuthenticationException("Invalid JWT token");
@@ -96,6 +101,7 @@ public class JwtService {
                 .withClaim(EMAIL_CLAIM, user.email())
                 .withClaim(ROLES_CLAIM, roles)
                 .withClaim(DEVICE_ID_CLAIM, deviceId)
+                .withClaim(CONSENT_PENDING_CLAIM, user.consentsPending())
                 .withIssuedAt(now)
                 .withExpiresAt(expirationTime)
                 .sign(signingAlgorithm);

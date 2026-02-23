@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Primary;
 import pl.srozga.gluqalc_api.component.logging.MdcFilter;
 import pl.srozga.gluqalc_api.component.rateLimit.RateLimitFilter;
 import pl.srozga.gluqalc_api.component.rateLimit.RateLimitService;
+import pl.srozga.gluqalc_api.security.PendingConsentsFilter;
 
 @Configuration
 public class FilterConfig {
@@ -33,6 +34,13 @@ public class FilterConfig {
     @Bean
     public FilterRegistrationBean<MdcFilter> mdcFilterRegistration(MdcFilter filter) {
         FilterRegistrationBean<MdcFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<PendingConsentsFilter> pendingConsentsFilterRegistration(PendingConsentsFilter filter) {
+        FilterRegistrationBean<PendingConsentsFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }
