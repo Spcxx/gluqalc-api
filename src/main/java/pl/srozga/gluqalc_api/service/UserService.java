@@ -287,6 +287,8 @@ public class UserService {
         User user = userRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
+        String userEmail = user.getEmail();
+
         user.setDeleted(true);
         userRepository.save(user);
 
@@ -297,6 +299,8 @@ public class UserService {
             String jwt = authHeader.substring(7);
             jwtService.invalidateJwtToken(jwt);
         }
+
+        emailService.sendAccountDeletedConfirmationEmail(userEmail);
 
         log.info("User {} successfully deleted their own account", user.getId());
     }

@@ -69,6 +69,34 @@ public class EmailService {
         }
     }
 
+    @Async
+    public void sendAccountDeletedConfirmationEmail(String to) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+
+            String htmlContent = """
+                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px; max-width: 600px; margin: 0 auto; text-align: center;">
+                          <h2 style="color: #555;">Account Successfully Deleted</h2>
+                          <p style="color: #333; font-size: 16px; line-height: 1.5; margin-top: 20px;">Your Gluqalc account and all associated data have been scheduled for permanent deletion.</p>
+                          <p style="color: #555; font-size: 14px; margin-top: 15px;">We are sorry to see you go! You are always welcome back if you change your mind.</p>
+                          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                          <p style="color: #999; font-size: 12px;">If you did not authorize this action, please contact our support immediately.</p>
+                    </div>
+                    """;
+
+            helper.setText(htmlContent, true);
+            helper.setTo(to);
+            helper.setSubject("Your Gluqalc Account Has Been Deleted");
+            helper.setFrom(emailFrom);
+
+            mailSender.send(mimeMessage);
+            log.info("Sent account deletion final confirmation email to {}", to);
+        } catch (MessagingException e) {
+            log.error("Failed to send account deletion final confirmation email to {}: {}", to, e.getMessage());
+        }
+    }
+
     private void sendEmail(String to, String subject, String message, String token) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
