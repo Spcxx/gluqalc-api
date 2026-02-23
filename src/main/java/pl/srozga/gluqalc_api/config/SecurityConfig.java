@@ -33,8 +33,36 @@ public class SecurityConfig {
     }
 
     @Bean
+    public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+        org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
+
+        configuration.setAllowedOriginPatterns(java.util.List.of("*"));
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowCredentials(false);
+
+        configuration.setAllowedHeaders(java.util.List.of(
+                "Authorization",
+                "Content-Type",
+                "X-Trace-Id"
+        ));
+
+        configuration.setExposedHeaders(java.util.List.of(
+                "X-Rate-Limit-Remaining",
+                "Retry-After",
+                "X-Trace-Id"
+        ));
+
+
+        org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, MdcFilter mdcFilter, PendingConsentsFilter pendingConsentsFilter) {
         http
+                .cors(Customizer.withDefaults())
                 .addFilterBefore(mdcFilter, LogoutFilter.class)
                 .with(jwtAuthenticationConfigurer, Customizer.withDefaults())
                 .addFilterAfter(pendingConsentsFilter, JwtAuthenticationFilter.class)
