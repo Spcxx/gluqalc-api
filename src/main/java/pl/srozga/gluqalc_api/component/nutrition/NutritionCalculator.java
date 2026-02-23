@@ -5,6 +5,7 @@ import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;
 import pl.srozga.gluqalc_api.common.UserGender;
 import pl.srozga.gluqalc_api.dto.internal.UserCalcDataDto;
 import pl.srozga.gluqalc_api.entity.UserProfile;
+import pl.srozga.gluqalc_api.exception.DomainValidationException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -17,13 +18,14 @@ public class NutritionCalculator {
         BigDecimal bmr = calculateBMR(profile);
 
         if (profile.getPhysicalActivityLevel() == null)
-            throw new IllegalArgumentException("Physical activity level is required for TDEE calculation");
+            throw new DomainValidationException("Physical activity level is required for TDEE calculation");
         BigDecimal tdee = bmr.multiply(profile.getPhysicalActivityLevel());
-        BigDecimal dailyGoalKcal = tdee.add(new BigDecimal(profile.getKcalGoalDifference() != null ? profile.getKcalGoalDifference() : 0));
+        int diff = profile.getKcalGoalDifference() != null ? profile.getKcalGoalDifference() : 0;
+        BigDecimal dailyGoalKcal = tdee.add(BigDecimal.valueOf(diff));
 
         // macro
         if (profile.getMacroStrategy() == null)
-            throw new IllegalArgumentException("Macro calculation strategy is required for macro calculation");
+            throw new DomainValidationException("Macro calculation strategy is required for macro calculation");
 
         MacroRatios ratios = getMacroRatios(profile.getMacroStrategy());
 
@@ -43,29 +45,38 @@ public class NutritionCalculator {
 
     private BigDecimal calculateBMR(UserProfile p) {
         if (p.getBirthDate() == null)
-            throw new IllegalArgumentException("Birth date is required for BMR calculation");
+            throw new DomainValidationException("Birth date is required for BMR calculation");
         if (p.getBmrMethod() == null)
-            throw new IllegalArgumentException("BMR calculation method is required for BMR calculation");
+            throw new DomainValidationException("BMR calculation method is required for BMR calculation");
 
-        int age = Period.between(LocalDate.parse(p.getBirthDate()), LocalDate.now()).getYears();
+        LocalDate birthDate;
+        try {
+            birthDate = LocalDate.parse(p.getBirthDate());
+        } catch (Exception e) {
+            throw new DomainValidationException("Invalid birth date format. Expected YYYY-MM-DD");
+        }
+
+        int age = Period.between(birthDate, LocalDate.now()).getYears();
+        if (age < 0 || age > 130)
+            throw new DomainValidationException("Invalid age calculated from birth date");
 
         return switch (p.getBmrMethod()) {
             case KATCH_MCARDLE -> {
                 if (p.getBodyFatPercentage() == null)
-                    throw new IllegalArgumentException("Body fat percentage is required for Katch-McArdle BMR calculation");
+                    throw new DomainValidationException("Body fat percentage is required for Katch-McArdle BMR calculation");
                 if (p.getWeightInKg() == null)
-                    throw new IllegalArgumentException("Weight is required for Katch-McArdle BMR calculation");
+                    throw new DomainValidationException("Weight is required for Katch-McArdle BMR calculation");
 
-                BigDecimal lbm = p.getWeightInKg().multiply(BigDecimal.ONE.subtract(p.getBodyFatPercentage().divide(new BigDecimal("100"))));
+                BigDecimal lbm = p.getWeightInKg().multiply(BigDecimal.ONE.subtract(p.getBodyFatPercentage().divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP)));
                 yield new BigDecimal("370").add(new BigDecimal("21.6").multiply(lbm));
             }
             case HARRIS_BENEDICT -> {
                 if (p.getWeightInKg() == null)
-                    throw new IllegalArgumentException("Weight is required for Harris-Benedict BMR calculation");
+                    throw new DomainValidationException("Weight is required for Harris-Benedict BMR calculation");
                 if (p.getHeightInCm() == null)
-                    throw new IllegalArgumentException("Height is required for Harris-Benedict BMR calculation");
+                    throw new DomainValidationException("Height is required for Harris-Benedict BMR calculation");
                 if (p.getGender() == null)
-                    throw new IllegalArgumentException("Gender is required for Harris-Benedict BMR calculation");
+                    throw new DomainValidationException("Gender is required for Harris-Benedict BMR calculation");
 
                 if (p.getGender() == UserGender.MALE) {
                     yield new BigDecimal("66.5").add(new BigDecimal("13.75").multiply(p.getWeightInKg()))
@@ -79,11 +90,11 @@ public class NutritionCalculator {
             }
             default -> {
                 if (p.getWeightInKg() == null)
-                    throw new IllegalArgumentException("Weight is required for Mifflin-St Jeor BMR calculation");
+                    throw new DomainValidationException("Weight is required for Mifflin-St Jeor BMR calculation");
                 if (p.getHeightInCm() == null)
-                    throw new IllegalArgumentException("Height is required for Mifflin-St Jeor BMR calculation");
+                    throw new DomainValidationException("Height is required for Mifflin-St Jeor BMR calculation");
                 if (p.getGender() == null)
-                    throw new IllegalArgumentException("Gender is required for Mifflin-St Jeor BMR calculation");
+                    throw new DomainValidationException("Gender is required for Mifflin-St Jeor BMR calculation");
 
                 BigDecimal base = p.getWeightInKg().multiply(BigDecimal.TEN)
                         .add(p.getHeightInCm().multiply(new BigDecimal("6.25")))

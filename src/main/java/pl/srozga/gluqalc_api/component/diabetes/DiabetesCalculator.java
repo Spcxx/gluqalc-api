@@ -10,6 +10,7 @@ import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
 import pl.srozga.gluqalc_api.dto.response.MealEntryResponse;
 import pl.srozga.gluqalc_api.entity.MealEntry;
 import pl.srozga.gluqalc_api.entity.UserProfile;
+import pl.srozga.gluqalc_api.exception.DomainValidationException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -232,7 +233,7 @@ public class DiabetesCalculator {
             return entry.getValue();
         } catch (Exception e) {
             log.error("Error parsing ICR for user {}", profile.getId());
-            throw new IllegalArgumentException("Invalid ICR configuration");
+            throw new DomainValidationException("Invalid ICR configuration");
         }
     }
 

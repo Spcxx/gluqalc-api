@@ -21,10 +21,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pl.srozga.gluqalc_api.dto.internal.ApiError;
-import pl.srozga.gluqalc_api.exception.ApplicationAuthenticationException;
-import pl.srozga.gluqalc_api.exception.ConflictException;
-import pl.srozga.gluqalc_api.exception.NotFoundException;
-import pl.srozga.gluqalc_api.exception.TokenAuthenticationException;
+import pl.srozga.gluqalc_api.exception.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -43,6 +40,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleIllegalArgumentException(IllegalArgumentException e) {
+        log.error("Illegal argument exception occurred: ", e);
+        return handleException(HttpStatus.BAD_REQUEST, "Invalid argument");
+    }
+
+    @ExceptionHandler(DomainValidationException.class)
+    public ResponseEntity<ApiError> handleDomainValidationException(DomainValidationException e) {
         return handleException(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 
