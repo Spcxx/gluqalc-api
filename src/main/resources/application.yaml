@@ -1,5 +1,8 @@
 server:
-  forward-headers-strategy: framework
+  forward-headers-strategy: native
+  tomcat:
+    remote-ip-header: x-forwarded-for
+    protocol-header: x-forwarded-proto
 app:
   security:
     db-encryption:
