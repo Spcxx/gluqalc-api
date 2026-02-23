@@ -34,9 +34,7 @@ public class ConsentService {
         if (requiredConsents.isEmpty())
             return false;
 
-        Set<UUID> acceptedDefinitionIds = userConsentRepository.findAllByUserId(userId).stream()
-                .map(uc -> uc.getConsentDefinition().getId())
-                .collect(Collectors.toSet());
+        Set<UUID> acceptedDefinitionIds = userConsentRepository.findAcceptedDefinitionIdsByUserId(userId);
 
         return requiredConsents.stream().anyMatch(req -> !acceptedDefinitionIds.contains(req.getId()));
     }
