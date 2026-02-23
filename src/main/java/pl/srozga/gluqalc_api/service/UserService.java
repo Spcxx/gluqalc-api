@@ -267,6 +267,40 @@ public class UserService {
         log.info("Confirmed email change for verified user {} from {} to {}", user.getId(), oldEmail, tokenNewEmail);
     }
 
+    public void requestUserDeletion(UUID userId) {
+        User user = userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        String token = verificationTokenService.createAccountDeletionToken(user.getId());
+        emailService.sendAccountDeletionEmail(user.getEmail(), token);
+
+        log.info("User {} requested account deletion", user.getId());
+    }
+
+    @Transactional
+    public void confirmUserDeletion(UUID userId, String code, String authHeader) {
+        UUID tokenUserId = verificationTokenService.validateAccountDeletionToken(code);
+
+        if (!tokenUserId.equals(userId))
+            throw new ApplicationAuthenticationException("Invalid token for this user");
+
+        User user = userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        user.setDeleted(true);
+        userRepository.save(user);
+
+        verificationTokenService.deleteAccountDeletionToken(code);
+        refreshTokenService.deleteAllUserSessions(user.getId());
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String jwt = authHeader.substring(7);
+            jwtService.invalidateJwtToken(jwt);
+        }
+
+        log.info("User {} successfully deleted their own account", user.getId());
+    }
+
     private UserResponse mapToResponse(User user) {
         return new UserResponse(
                 user.getId(),

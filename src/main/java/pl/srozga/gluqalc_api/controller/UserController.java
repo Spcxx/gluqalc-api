@@ -129,4 +129,22 @@ public class UserController {
     ) {
         userService.confirmVerifiedUserEmailChange(authUser.id(), request);
     }
+
+    @PostMapping("/me/delete/request")
+    @PreAuthorize("isAuthenticated()")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void requestMyAccountDeletion(@AuthenticationPrincipal AuthUser authUser) {
+        userService.requestUserDeletion(authUser.id());
+    }
+
+    @PostMapping("/me/delete/confirm")
+    @PreAuthorize("isAuthenticated()")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmMyAccountDeletion(
+            @Valid @RequestBody ConfirmUserDeletionRequest request,
+            @AuthenticationPrincipal AuthUser authUser,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authHeader
+    ) {
+        userService.confirmUserDeletion(authUser.id(), request.code(), authHeader);
+    }
 }

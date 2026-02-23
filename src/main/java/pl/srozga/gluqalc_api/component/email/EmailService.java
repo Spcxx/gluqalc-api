@@ -38,6 +38,11 @@ public class EmailService {
     }
 
     @Async
+    public void sendAccountDeletionEmail(String to, String token) {
+        sendEmail(to, "Account Deletion Request", "Use the code below to confirm the deletion of your account. This action cannot be undone:", token);
+    }
+
+    @Async
     public void sendSecurityAlertEmail(String to, String message) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();

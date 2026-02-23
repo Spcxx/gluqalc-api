@@ -16,6 +16,7 @@ public class EmailVerificationTokenService {
     private static final String REDIS_PWD_RESET_PREFIX = "auth:password-reset:";
     private static final String REDIS_USER_MAPPING = "auth:verify:user:";
     private static final String REDIS_EMAIL_CHANGE_PREFIX = "auth:change-email:";
+    private static final String REDIS_ACCOUNT_DELETION_PREFIX = "auth:delete-account:";
 
     private final StringRedisTemplate redisTemplate;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -87,6 +88,21 @@ public class EmailVerificationTokenService {
 
     public void deleteEmailChangeToken(String token) {
         redisTemplate.delete(REDIS_EMAIL_CHANGE_PREFIX + token);
+    }
+
+    public String createAccountDeletionToken(UUID userId) {
+        return generateAndSaveToken(REDIS_ACCOUNT_DELETION_PREFIX, userId, false);
+    }
+
+    public UUID validateAccountDeletionToken(String token) {
+        String userIdStr = redisTemplate.opsForValue().get(REDIS_ACCOUNT_DELETION_PREFIX + token);
+        if (userIdStr == null)
+            throw new TokenAuthenticationException("Deletion code is invalid or expired");
+        return UUID.fromString(userIdStr);
+    }
+
+    public void deleteAccountDeletionToken(String token) {
+        redisTemplate.delete(REDIS_ACCOUNT_DELETION_PREFIX + token);
     }
 
     private String generateAndSaveToken(String prefix, UUID userId, boolean saveUserMapping) {
