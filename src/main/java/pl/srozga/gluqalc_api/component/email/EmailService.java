@@ -32,6 +32,38 @@ public class EmailService {
         sendEmail(to, "Password Reset Code", "Use the code below to reset your password:", token);
     }
 
+    @Async
+    public void sendEmailChangeConfirmationEmail(String to, String token) {
+        sendEmail(to, "Confirm Email Change", "Use the code below to confirm your new email address:", token);
+    }
+
+    @Async
+    public void sendSecurityAlertEmail(String to, String message) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+
+            String htmlContent = String.format("""
+                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ffcccc; border-radius: 8px; max-width: 600px; margin: 0 auto;">
+                          <h2 style="color: #d9534f; text-align: center;">Security Alert</h2>
+                          <p style="color: #333; font-size: 16px; line-height: 1.5;">%s</p>
+                          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                          <p style="color: #777; font-size: 12px; text-align: center;">If you did not request this change, please contact our support team immediately and reset your password.</p>
+                    </div>
+                    """, message);
+
+            helper.setText(htmlContent, true);
+            helper.setTo(to);
+            helper.setSubject("Security Alert: Your account details were changed");
+            helper.setFrom(emailFrom);
+
+            mailSender.send(mimeMessage);
+            log.info("Sent security alert email to {}", to);
+        } catch (MessagingException e) {
+            log.error("Failed to send security alert email to {}: {}", to, e.getMessage());
+        }
+    }
+
     private void sendEmail(String to, String subject, String message, String token) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();

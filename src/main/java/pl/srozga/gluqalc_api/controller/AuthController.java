@@ -74,4 +74,11 @@ public class AuthController {
     public void linkGoogleAccount(@Valid @RequestBody GoogleLoginRequest request, @AuthenticationPrincipal AuthUser authUser) {
         authService.linkGoogleAccount(request.idToken(), authUser.id());
     }
+
+    @PostMapping("/change-email")
+    @PreAuthorize("isAnonymous()")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changeUnverifiedEmail(@Valid @RequestBody ChangeUnverifiedEmailRequest request) {
+        userService.changeUnverifiedUserEmail(request);
+    }
 }

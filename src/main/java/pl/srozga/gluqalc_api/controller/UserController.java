@@ -8,9 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pl.srozga.gluqalc_api.common.UserRole;
-import pl.srozga.gluqalc_api.dto.request.PasswordResetConfirmRequest;
-import pl.srozga.gluqalc_api.dto.request.PasswordResetRequest;
-import pl.srozga.gluqalc_api.dto.request.RoleRequest;
+import pl.srozga.gluqalc_api.dto.request.*;
 import pl.srozga.gluqalc_api.dto.response.DeviceSessionResponse;
 import pl.srozga.gluqalc_api.dto.response.UserAdminResponse;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
@@ -110,5 +108,25 @@ public class UserController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest passwordResetConfirmRequest) {
         userService.completePasswordReset(passwordResetConfirmRequest);
+    }
+
+    @PostMapping("/change-email/request")
+    @PreAuthorize("isAuthenticated()")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void requestVerifiedEmailChange(
+            @Valid @RequestBody ChangeEmailRequest request,
+            @AuthenticationPrincipal AuthUser authUser
+    ) {
+        userService.requestVerifiedUserEmailChange(authUser.id(), request);
+    }
+
+    @PostMapping("/change-email/confirm")
+    @PreAuthorize("isAuthenticated()")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmVerifiedEmailChange(
+            @Valid @RequestBody ConfirmEmailChangeRequest request,
+            @AuthenticationPrincipal AuthUser authUser
+    ) {
+        userService.confirmVerifiedUserEmailChange(authUser.id(), request);
     }
 }

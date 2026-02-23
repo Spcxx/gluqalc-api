@@ -9,12 +9,12 @@ import pl.srozga.gluqalc_api.common.AuthProvider;
 import pl.srozga.gluqalc_api.common.UserRole;
 import pl.srozga.gluqalc_api.component.email.EmailService;
 import pl.srozga.gluqalc_api.component.email.EmailVerificationTokenService;
-import pl.srozga.gluqalc_api.dto.request.PasswordResetConfirmRequest;
-import pl.srozga.gluqalc_api.dto.request.RegisterRequest;
+import pl.srozga.gluqalc_api.dto.request.*;
 import pl.srozga.gluqalc_api.dto.response.DeviceSessionResponse;
 import pl.srozga.gluqalc_api.dto.response.UserAdminResponse;
 import pl.srozga.gluqalc_api.dto.response.UserResponse;
 import pl.srozga.gluqalc_api.entity.User;
+import pl.srozga.gluqalc_api.exception.ApplicationAuthenticationException;
 import pl.srozga.gluqalc_api.exception.ConflictException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
 import pl.srozga.gluqalc_api.exception.TokenAuthenticationException;
@@ -176,6 +176,95 @@ public class UserService {
         verificationTokenService.deletePasswordResetToken(request.code());
 
         log.info("Password successfully reset for user: {}", user.getEmail());
+    }
+
+    @Transactional
+    public void changeUnverifiedUserEmail(ChangeUnverifiedEmailRequest request) {
+        User user = userRepository.findByEmailAndDeletedFalse(request.oldEmail())
+                .orElseThrow(() -> new ApplicationAuthenticationException("Invalid email or password"));
+
+        if (user.isEnabled())
+            throw new ConflictException("Account is already verified.");
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash()))
+            throw new ApplicationAuthenticationException("Invalid email or password");
+
+        String newEmail = request.newEmail().toLowerCase();
+
+        if (user.getEmail().equalsIgnoreCase(newEmail))
+            throw new ConflictException("New email must be different from the current one");
+        if (userRepository.existsByEmail(newEmail))
+            throw new ConflictException("Email is already taken");
+
+        user.setEmail(newEmail);
+        userRepository.save(user);
+
+        verificationTokenService.deleteVerificationTokenForUser(user.getId());
+        String newToken = verificationTokenService.createVerificationToken(user.getId());
+
+        emailService.sendVerificationEmail(newEmail, newToken);
+        log.info("Changed email for unverified user {}. Sent new verification code to {}", user.getId(), newEmail);
+    }
+
+    public void requestVerifiedUserEmailChange(UUID userId, ChangeEmailRequest request) {
+        User user = userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        if (!user.getProviders().contains(AuthProvider.LOCAL))
+            throw new ConflictException("Email change is not available for users registered via external providers");
+        if (user.getProviders().size() > 1)
+            throw new ConflictException("Email change is not available for users with multiple authentication providers");
+
+        if (!user.isEnabled())
+            throw new ConflictException("Account is not verified");
+
+        String newEmail = request.newEmail().toLowerCase();
+
+        if (user.getEmail().equalsIgnoreCase(newEmail))
+            throw new ConflictException("New email must be different from the current one");
+        if (userRepository.existsByEmail(newEmail))
+            throw new ConflictException("Email is already taken");
+
+        String token = verificationTokenService.createEmailChangeToken(user.getId(), newEmail);
+        emailService.sendEmailChangeConfirmationEmail(newEmail, token);
+
+        log.info("User {} requested email change. Sent confirmation code to {}", user.getId(), newEmail);
+    }
+
+    @Transactional
+    public void confirmVerifiedUserEmailChange(UUID userId, ConfirmEmailChangeRequest request) {
+        String[] tokenData = verificationTokenService.validateEmailChangeToken(request.code());
+        UUID tokenUserId = UUID.fromString(tokenData[0]);
+        String tokenNewEmail = tokenData[1];
+
+        if (!tokenUserId.equals(userId))
+            throw new ApplicationAuthenticationException("Invalid token for this user");
+
+        if (!tokenNewEmail.equalsIgnoreCase(request.newEmail()))
+            throw new ConflictException("Email does not match the requested change");
+
+        User user = userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        if (!user.getProviders().contains(AuthProvider.LOCAL))
+            throw new ConflictException("Email change is not available for users registered via external providers");
+        if (user.getProviders().size() > 1)
+            throw new ConflictException("Email change is not available for users with multiple authentication providers");
+        if (userRepository.existsByEmail(tokenNewEmail))
+            throw new ConflictException("Email is already taken");
+
+        String oldEmail = user.getEmail();
+
+        user.setEmail(tokenNewEmail);
+        userRepository.save(user);
+
+        verificationTokenService.deleteEmailChangeToken(request.code());
+
+        emailService.sendSecurityAlertEmail(
+                oldEmail,
+                "The email address associated with your Gluqalc account has been changed to: <strong>" + tokenNewEmail + "</strong>."
+        );
+
+        log.info("Confirmed email change for verified user {} from {} to {}", user.getId(), oldEmail, tokenNewEmail);
     }
 
     private UserResponse mapToResponse(User user) {
