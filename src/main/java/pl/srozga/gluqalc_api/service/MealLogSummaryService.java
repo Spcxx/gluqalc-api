@@ -12,6 +12,7 @@ import pl.srozga.gluqalc_api.dto.internal.UserCalcDataDto;
 import pl.srozga.gluqalc_api.dto.response.DaySummaryResponse;
 import pl.srozga.gluqalc_api.entity.MealEntry;
 import pl.srozga.gluqalc_api.entity.UserProfile;
+import pl.srozga.gluqalc_api.exception.DomainValidationException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
 import pl.srozga.gluqalc_api.repository.MealEntryRepository;
 import pl.srozga.gluqalc_api.repository.UserProfileRepository;
@@ -51,7 +52,7 @@ public class MealLogSummaryService {
         UserCalcDataDto baseCalc;
         try {
             baseCalc = nutritionCalculator.calculate(profile);
-        } catch (IllegalArgumentException e) {
+        } catch (DomainValidationException | IllegalArgumentException e) {
             log.debug("Cannot calculate targets for user {}: {}", profile.getId(), e.getMessage());
             return emptySummary(date, meals);
         }

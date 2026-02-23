@@ -13,7 +13,9 @@ public abstract class BaseEncryptor {
     private final Key key;
 
     public BaseEncryptor(@Value("${app.security.db-encryption.key}") String secret) throws Exception {
-        this.key = new SecretKeySpec(secret.getBytes(), ALGORITHM);
+        byte[] keyBytes = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        this.key = new SecretKeySpec(keyBytes, ALGORITHM);
     }
 
     @SneakyThrows

@@ -11,6 +11,7 @@ import pl.srozga.gluqalc_api.dto.internal.UserCalcDataDto;
 import pl.srozga.gluqalc_api.dto.row.DailyStatsExportRow;
 import pl.srozga.gluqalc_api.entity.MealEntry;
 import pl.srozga.gluqalc_api.entity.UserProfile;
+import pl.srozga.gluqalc_api.exception.DomainValidationException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
 import pl.srozga.gluqalc_api.repository.MealEntryRepository;
 import pl.srozga.gluqalc_api.repository.UserProfileRepository;
@@ -172,7 +173,7 @@ public class StatisticsService {
         try {
             UserCalcDataDto calcData = nutritionCalculator.calculate(profile);
             return calcData.dailyGoalKcal() != null ? calcData.dailyGoalKcal() : DEFAULT_KCAL_GOAL;
-        } catch (IllegalArgumentException | NullPointerException e) {
+        } catch (IllegalArgumentException | NullPointerException | DomainValidationException e) {
             log.warn("Cannot calculate nutrition goal: {}. Using default.", e.getMessage());
             return DEFAULT_KCAL_GOAL;
         }
@@ -181,9 +182,16 @@ public class StatisticsService {
     private String formatEatingWindow(LocalTime start, LocalTime end) {
         if (start == null || end == null)
             return "-";
-        long hours = Duration.between(start, end).toHours();
-        return String.format("%02d:%02d - %02d:%02d (%dh)",
-                start.getHour(), start.getMinute(), end.getHour(), end.getMinute(), hours);
+
+        Duration duration = Duration.between(start, end);
+        long totalMinutes = duration.toMinutes();
+        long hours = totalMinutes / 60;
+        long minutes = totalMinutes % 60;
+
+        return String.format("%02d:%02d - %02d:%02d (%dh %02dm)",
+                start.getHour(), start.getMinute(),
+                end.getHour(), end.getMinute(),
+                hours, minutes);
     }
 
     private void appendRowToCsv(StringBuilder sb, DailyStatsExportRow row) {

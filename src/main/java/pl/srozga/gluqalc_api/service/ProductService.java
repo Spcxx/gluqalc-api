@@ -18,6 +18,7 @@ import pl.srozga.gluqalc_api.dto.request.UpdateProductRequest;
 import pl.srozga.gluqalc_api.dto.response.*;
 import pl.srozga.gluqalc_api.entity.*;
 import pl.srozga.gluqalc_api.exception.ConflictException;
+import pl.srozga.gluqalc_api.exception.DomainValidationException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
 import pl.srozga.gluqalc_api.integration.ProductProvider;
 import pl.srozga.gluqalc_api.repository.*;
@@ -175,7 +176,7 @@ public class ProductService {
         Product product = productRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
         if (product.isPublished())
-            throw new IllegalArgumentException("Product is already approved");
+            throw new DomainValidationException("Product is already approved");
 
         product.setPublished(true);
         product.getPortions().forEach(p -> p.setPublished(true));

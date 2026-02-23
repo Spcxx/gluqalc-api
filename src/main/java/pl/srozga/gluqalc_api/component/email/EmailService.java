@@ -16,9 +16,6 @@ import org.springframework.stereotype.Service;
 public class EmailService {
     private final JavaMailSender mailSender;
 
-    @Value("${app.api-url}")
-    private String apiUrl;
-
     @Value("${app.email-from}")
     private String emailFrom;
 

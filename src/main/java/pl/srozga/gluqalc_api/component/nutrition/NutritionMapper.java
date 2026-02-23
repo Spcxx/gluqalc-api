@@ -20,6 +20,9 @@ public class NutritionMapper {
 
             BigDecimal multiplier = portion.weightInGrams().divide(HUNDRED, 4, RoundingMode.HALF_UP);
             ProductNutritionDto baseNutrition = base.nutrition();
+            if (baseNutrition == null)
+                return portion;
+
             ProductNutritionDto calculatedNutrition = new ProductNutritionDto(
                     calculate(baseNutrition.energyKcal(), multiplier, 1),
                     calculate(baseNutrition.carbohydrates(), multiplier, 1),

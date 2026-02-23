@@ -138,7 +138,7 @@ public class ProductMapper {
                 nutrition.carbohydrates(),
                 nutrition.protein(),
                 nutrition.fat(),
-                BigDecimal.valueOf(nutrition.glycemicIndex()),
+                nutrition.glycemicIndex() != null ? BigDecimal.valueOf(nutrition.glycemicIndex()) : null,
                 profile,
                 time
         );

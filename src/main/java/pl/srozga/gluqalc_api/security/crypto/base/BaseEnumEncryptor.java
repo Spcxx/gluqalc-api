@@ -1,7 +1,9 @@
 package pl.srozga.gluqalc_api.security.crypto.base;
 
 import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.Converter;
 
+@Converter
 public abstract class BaseEnumEncryptor<E extends Enum<E>> extends BaseEncryptor implements AttributeConverter<E, String> {
     private final Class<E> enumClass;
 

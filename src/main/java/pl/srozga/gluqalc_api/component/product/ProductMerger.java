@@ -36,7 +36,11 @@ public class ProductMerger {
         List<PortionChange> safePortionChanges = portionChanges != null ? portionChanges : Collections.emptyList();
 
         Map<UUID, PortionChange> portionChangeMap = safePortionChanges.stream()
-                .collect(Collectors.toMap(PortionChange::getPortionId, pc -> pc));
+                .collect(Collectors.toMap(
+                        PortionChange::getPortionId,
+                        pc -> pc,
+                        (existing, _) -> existing
+                ));
 
         List<ProductPortionDto> effectivePortions = allVisiblePortions.stream()
                 .map(portion -> {
@@ -63,7 +67,7 @@ public class ProductMerger {
                         );
                     }
                 })
-                .sorted(Comparator.comparing(ProductPortionDto::weightInGrams))
+                .sorted(Comparator.comparing(ProductPortionDto::weightInGrams, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
 
         return new ProductDto(

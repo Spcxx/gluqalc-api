@@ -25,7 +25,7 @@ public class OpenFoodFactsProvider implements ProductProvider {
     public static final ProductProviderType PROVIDER = ProductProviderType.OFF;
 
     @Override
-    @Cacheable(value = "off_barcode_cache", key = "#barcode")
+    @Cacheable(value = "off_barcode_cache", key = "#barcode", unless = "#result.isEmpty()")
     public Optional<ProductDto> getProductByBarcode(String barcode) {
         try {
             OffResponse response = restClient.get()

@@ -1,6 +1,5 @@
 package pl.srozga.gluqalc_api.integration;
 
-import org.springframework.data.domain.Pageable;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 
 import java.util.List;

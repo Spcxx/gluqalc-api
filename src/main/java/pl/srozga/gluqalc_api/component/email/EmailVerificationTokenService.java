@@ -106,6 +106,10 @@ public class EmailVerificationTokenService {
     }
 
     private String generateAndSaveToken(String prefix, UUID userId, boolean saveUserMapping) {
+        String oldToken = redisTemplate.opsForValue().get(REDIS_USER_MAPPING + userId);
+        if (oldToken != null)
+            redisTemplate.delete(prefix + oldToken);
+
         int attempts = 0;
         while (attempts < 10) {
             int code = 100000 + secureRandom.nextInt(900000);
