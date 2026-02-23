@@ -8,6 +8,9 @@ public record ChangeEmailRequest(
         @NotBlank(message = "New email is required")
         @Size(min = 5, max = 255, message = "Email must be between 5 and 255 characters")
         @Email
-        String newEmail
+        String newEmail,
+        @NotBlank(message = "Password is required")
+        @Size(min = 8, message = "Password must be at least 8 characters long")
+        String password
 ) {
 }

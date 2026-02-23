@@ -208,6 +208,8 @@ public class UserService {
     public void requestVerifiedUserEmailChange(UUID userId, ChangeEmailRequest request) {
         User user = userRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash()))
+            throw new ApplicationAuthenticationException("Invalid email or password");
 
         if (!user.getProviders().contains(AuthProvider.LOCAL))
             throw new ConflictException("Email change is not available for users registered via external providers");
