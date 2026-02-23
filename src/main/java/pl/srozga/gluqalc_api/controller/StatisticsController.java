@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import pl.srozga.gluqalc_api.component.rateLimit.RateLimit;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import pl.srozga.gluqalc_api.service.StatisticsService;
 
@@ -22,6 +23,7 @@ import java.time.LocalDate;
 public class StatisticsController {
     private final StatisticsService statisticsService;
 
+    @RateLimit(maxRequests = 2, timeWindowSeconds = 60)
     @GetMapping("/export")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> exportData(

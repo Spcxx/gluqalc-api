@@ -8,6 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pl.srozga.gluqalc_api.common.UserRole;
+import pl.srozga.gluqalc_api.component.rateLimit.RateLimit;
 import pl.srozga.gluqalc_api.dto.request.*;
 import pl.srozga.gluqalc_api.dto.response.DeviceSessionResponse;
 import pl.srozga.gluqalc_api.dto.response.UserAdminResponse;
@@ -98,18 +99,21 @@ public class UserController {
         userService.revokeDeviceSession(id, deviceId, authUser, authHeader);
     }
 
+    @RateLimit(maxRequests = 3, timeWindowSeconds = 300)
     @PostMapping("/reset-password/request")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void requestPasswordReset(@Valid @RequestBody PasswordResetRequest passwordResetRequest) {
         userService.initiatePasswordReset(passwordResetRequest.email());
     }
 
+    @RateLimit(maxRequests = 5, timeWindowSeconds = 60)
     @PostMapping("/reset-password/confirm")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest passwordResetConfirmRequest) {
         userService.completePasswordReset(passwordResetConfirmRequest);
     }
 
+    @RateLimit(maxRequests = 3, timeWindowSeconds = 300)
     @PostMapping("/change-email/request")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -120,6 +124,7 @@ public class UserController {
         userService.requestVerifiedUserEmailChange(authUser.id(), request);
     }
 
+    @RateLimit(maxRequests = 5, timeWindowSeconds = 60)
     @PostMapping("/change-email/confirm")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -130,6 +135,7 @@ public class UserController {
         userService.confirmVerifiedUserEmailChange(authUser.id(), request);
     }
 
+    @RateLimit(maxRequests = 3, timeWindowSeconds = 300)
     @PostMapping("/me/delete/request")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -137,6 +143,7 @@ public class UserController {
         userService.requestUserDeletion(authUser.id());
     }
 
+    @RateLimit(maxRequests = 5, timeWindowSeconds = 60)
     @PostMapping("/me/delete/confirm")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)

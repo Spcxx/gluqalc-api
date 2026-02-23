@@ -15,6 +15,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import pl.srozga.gluqalc_api.common.UserRole;
 import pl.srozga.gluqalc_api.component.product.ProductMapper;
+import pl.srozga.gluqalc_api.component.rateLimit.RateLimit;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.request.AddProductRequest;
 import pl.srozga.gluqalc_api.dto.request.ImportProductRequest;
@@ -225,6 +226,7 @@ public class ProductController {
         productService.approvePortionChange(changeId);
     }
 
+    @RateLimit(maxRequests = 60, timeWindowSeconds = 60)
     @GetMapping("/search")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<?>> searchUnified(

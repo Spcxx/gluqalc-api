@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import pl.srozga.gluqalc_api.component.rateLimit.RateLimit;
 import pl.srozga.gluqalc_api.dto.request.*;
 import pl.srozga.gluqalc_api.dto.response.TokenResponse;
 import pl.srozga.gluqalc_api.dto.response.UserResponse;
@@ -23,6 +24,7 @@ public class AuthController {
     private final AuthService authService;
     private final UserService userService;
 
+    @RateLimit(maxRequests = 10, timeWindowSeconds = 300)
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest request) {
         return authService.login(loginRequest, IpResolver.getClientIp(request), request.getHeader(HttpHeaders.USER_AGENT));
@@ -30,6 +32,7 @@ public class AuthController {
 
     @PreAuthorize("isAnonymous()")
     @PostMapping("/register")
+    @RateLimit(maxRequests = 10, timeWindowSeconds = 300)
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse register(@Valid @RequestBody RegisterRequest registerRequest) {
         return userService.createUser(registerRequest);
@@ -41,6 +44,7 @@ public class AuthController {
     }
 
     @PostMapping("/google")
+    @RateLimit(maxRequests = 10, timeWindowSeconds = 300)
     public TokenResponse loginWithGoogleApp(@Valid @RequestBody GoogleLoginRequest requestBody, HttpServletRequest request) {
         return authService.loginWithGoogle(requestBody.idToken(), requestBody.deviceId(), IpResolver.getClientIp(request), request.getHeader(HttpHeaders.USER_AGENT));
     }
@@ -56,6 +60,7 @@ public class AuthController {
     }
 
     @PostMapping("/verify")
+    @RateLimit(maxRequests = 10, timeWindowSeconds = 300)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
         authService.verifyEmail(request.code());
