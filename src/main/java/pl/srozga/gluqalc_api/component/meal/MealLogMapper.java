@@ -96,6 +96,9 @@ public class MealLogMapper {
             }
         }
 
+        BigDecimal averageGiBg = diabetesCalculator.calculateAverageGlycemicIndex(entries);
+        Integer averageGi = averageGiBg != null ? averageGiBg.intValue() : null;
+
         return new ProductNutritionResponse(
                 accEnergy,
                 accCarbs,
@@ -105,7 +108,7 @@ public class MealLogMapper {
                 accProtein,
                 accFiber,
                 accSalt,
-                null
+                averageGi
         );
     }
 

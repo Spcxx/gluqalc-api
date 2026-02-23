@@ -77,10 +77,7 @@ public class DiabetesCalculator {
             }
         }
 
-        BigDecimal averageGi = null;
-        if (carbsWithGi.compareTo(BigDecimal.ZERO) > 0) {
-            averageGi = weightedGiSum.divide(carbsWithGi, 0, RoundingMode.HALF_UP);
-        }
+        BigDecimal averageGi = calculateAverageGlycemicIndex(entries);
 
         return calculateInternal(totalCarbs, totalProtein, totalFat, averageGi, profile, time);
     }
@@ -97,6 +94,29 @@ public class DiabetesCalculator {
                 profile,
                 time
         );
+    }
+
+    public BigDecimal calculateAverageGlycemicIndex(List<MealEntryResponse> entries) {
+        if (entries == null || entries.isEmpty())
+            return null;
+
+        BigDecimal weightedGiSum = BigDecimal.ZERO;
+        BigDecimal carbsWithGi = BigDecimal.ZERO;
+
+        for (MealEntryResponse entry : entries) {
+            BigDecimal carbs = entry.nutrition().carbohydrates() != null ? entry.nutrition().carbohydrates() : BigDecimal.ZERO;
+            Integer gi = entry.nutrition().glycemicIndex();
+
+            if (gi != null && carbs.compareTo(BigDecimal.ZERO) > 0) {
+                weightedGiSum = weightedGiSum.add(carbs.multiply(BigDecimal.valueOf(gi)));
+                carbsWithGi = carbsWithGi.add(carbs);
+            }
+        }
+
+        if (carbsWithGi.compareTo(BigDecimal.ZERO) > 0)
+            return weightedGiSum.divide(carbsWithGi, 0, RoundingMode.HALF_UP);
+
+        return null;
     }
 
     private DiabetesCalcDataDto calculateInternal(BigDecimal carbs, BigDecimal protein, BigDecimal fat, BigDecimal glycemicIndex, UserProfile profile, LocalTime time) {
@@ -135,8 +155,6 @@ public class DiabetesCalculator {
                 if (fpu.compareTo(BigDecimal.ZERO) > 0) {
                     int calculatedMinutes = (int) (fpu.doubleValue() * 60) + 120;
                     durationMinutes = Math.min(calculatedMinutes, 480);
-                } else {
-                    durationMinutes = 0;
                 }
                 break;
 
@@ -146,9 +164,7 @@ public class DiabetesCalculator {
                 fatProteinDose = fpu.multiply(ifpRatio);
                 double wbtVal = fpu.doubleValue();
 
-                if (wbtVal <= 0)
-                    durationMinutes = 0;
-                else if (wbtVal <= 1.0)
+                if (wbtVal <= 1.0)
                     durationMinutes = 180; // 3h
                 else if (wbtVal <= 2.0)
                     durationMinutes = 240; // 4h
@@ -216,7 +232,7 @@ public class DiabetesCalculator {
             return entry.getValue();
         } catch (Exception e) {
             log.error("Error parsing ICR for user {}", profile.getId());
-            return BigDecimal.ZERO;
+            throw new IllegalArgumentException("Invalid ICR configuration");
         }
     }
 
