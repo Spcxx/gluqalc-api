@@ -11,8 +11,8 @@ app:
     open-food-facts:
       url: https://world.openfoodfacts.org
       user-agent: GluQalc/1.0 (rozga.szymon@gmail.com)
-  api-url: http://localhost:8080
-  email-from: no-reply@srozga.pl
+  mail:
+    from: no-reply@srozga.pl
   jwt:
     secret: ${JWT_SECRET}
     expiration-time-ms: 900000
