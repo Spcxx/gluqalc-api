@@ -19,7 +19,7 @@ CREATE TABLE user_roles (
 
 CREATE TABLE products (
     id UUID PRIMARY KEY,
-    barcode VARCHAR(255),
+    barcode VARCHAR(255) UNIQUE,
     name VARCHAR(255) NOT NULL,
     brand VARCHAR(255),
     energy_kcal NUMERIC(10, 1) NOT NULL,
@@ -35,10 +35,11 @@ CREATE TABLE products (
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_by UUID,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+
+    CONSTRAINT fk_products_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
-CREATE UNIQUE INDEX idx_products_barcode ON products(barcode);
 CREATE INDEX idx_products_name ON products(name);
 
 CREATE TABLE product_portions (
@@ -51,7 +52,8 @@ CREATE TABLE product_portions (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
 
-    CONSTRAINT fk_portions_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+    CONSTRAINT fk_portions_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    CONSTRAINT fk_portions_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_product_portions_product_id ON product_portions(product_id);
@@ -78,10 +80,9 @@ CREATE TABLE product_changes (
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
 
     CONSTRAINT fk_product_changes_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    CONSTRAINT uq_product_user_change UNIQUE (product_id, user_id)
+    CONSTRAINT uq_product_user_change UNIQUE (product_id, user_id),
+    CONSTRAINT fk_product_changes_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
-CREATE INDEX idx_product_changes_lookup ON product_changes(product_id, user_id);
 
 CREATE TABLE portion_changes (
     id UUID PRIMARY KEY,
@@ -95,10 +96,9 @@ CREATE TABLE portion_changes (
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
 
     CONSTRAINT fk_portion_changes_portion FOREIGN KEY (portion_id) REFERENCES product_portions(id) ON DELETE CASCADE,
-    CONSTRAINT uq_portion_user_change UNIQUE (portion_id, user_id)
+    CONSTRAINT uq_portion_user_change UNIQUE (portion_id, user_id),
+    CONSTRAINT fk_portion_changes_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
-
-CREATE INDEX idx_portion_changes_lookup ON portion_changes(portion_id, user_id);
 
 CREATE TABLE meal_categories (
     id UUID PRIMARY KEY,
@@ -106,7 +106,9 @@ CREATE TABLE meal_categories (
     name VARCHAR(255) NOT NULL,
     sort_order INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+
+    CONSTRAINT fk_meal_categories_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_meal_categories_user_id ON meal_categories(user_id);
@@ -139,7 +141,8 @@ CREATE TABLE meal_entries (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
 
-    CONSTRAINT fk_meal_entries_category FOREIGN KEY (meal_category_id) REFERENCES meal_categories(id)
+    CONSTRAINT fk_meal_entries_category FOREIGN KEY (meal_category_id) REFERENCES meal_categories(id) ON DELETE CASCADE,
+    CONSTRAINT fk_meal_entries_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_meal_entries_user_id ON meal_entries(user_id);
@@ -167,7 +170,7 @@ CREATE TABLE user_profiles (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
 
-    CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id)
+    CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE device_sessions (
@@ -187,7 +190,6 @@ CREATE TABLE device_sessions (
 );
 
 CREATE INDEX idx_device_sessions_user_id ON device_sessions(user_id);
-CREATE INDEX idx_device_sessions_refresh_token ON device_sessions(refresh_token);
 
 CREATE TABLE user_providers (
     user_id UUID NOT NULL,
