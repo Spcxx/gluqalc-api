@@ -102,7 +102,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InsufficientAuthenticationException.class)
     public ResponseEntity<ApiError> handleInsufficientAuthenticationException() {
-        return handleException(HttpStatus.UNAUTHORIZED, "Access denied");
+        return handleException(HttpStatus.UNAUTHORIZED, "Authentication required");
     }
 
 
