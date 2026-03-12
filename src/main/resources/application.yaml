@@ -27,6 +27,9 @@ app:
 spring:
   application:
     name: GluQalc API
+  jackson:
+    time-zone: UTC
+    locale: en_US
   threads:
     virtual:
       enabled: true
