@@ -25,7 +25,7 @@ public class CacheConfig {
                 .entryTtl(Duration.ofDays(3))
                 .disableCachingNullValues();
         RedisCacheConfiguration barcodeConfig = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofDays(7))
+                .entryTtl(Duration.ofDays(3))
                 .disableCachingNullValues();
 
         return RedisCacheManager.builder(connectionFactory)
