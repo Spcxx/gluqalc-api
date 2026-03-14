@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.srozga.gluqalc_api.common.MacroType;
 import pl.srozga.gluqalc_api.component.nutrition.NutritionCalculator;
 import pl.srozga.gluqalc_api.dto.internal.UserCalcDataDto;
 import pl.srozga.gluqalc_api.dto.request.UpdateUserProfileRequest;
@@ -55,7 +56,6 @@ public class UserProfileService {
         profile.setKcalGoalDifference(request.kcalGoalDifference());
         profile.setBodyFatPercentage(request.bodyFatPercentage());
         profile.setBmrMethod(request.bmrCalculationMethod());
-        profile.setMacroStrategy(request.macroCalculationStrategy());
         profile.setInsulinSensitivityFactor(request.insulinSensitivityFactor());
         profile.setInsulinFatProteinRatio(request.insulinFatProteinRatio());
 
@@ -72,6 +72,14 @@ public class UserProfileService {
                 profile.setWeeklyKcalDistributionJson(objectMapper.writeValueAsString(request.weeklyKcalDistribution()));
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Error serializing distribution", e);
+            }
+        }
+
+        if (request.macroStrategy() != null) {
+            try {
+                profile.setMacroStrategyJson(objectMapper.writeValueAsString(request.macroStrategy()));
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Error serializing macro strategy", e);
             }
         }
 
@@ -115,6 +123,8 @@ public class UserProfileService {
             }
         }
 
+        Map<MacroType, BigDecimal> macroStrategy = nutritionCalculator.getMacroRatios(p.getMacroStrategyJson());
+
         NutritionTargetsResponse targets = null;
         try {
             UserCalcDataDto calcResult = nutritionCalculator.calculate(p);
@@ -141,7 +151,7 @@ public class UserProfileService {
                 distribution,
                 p.getBodyFatPercentage(),
                 p.getBmrMethod(),
-                p.getMacroStrategy(),
+                macroStrategy,
                 p.getInsulinSensitivityFactor(),
                 p.getInsulinFatProteinRatio(),
                 icrMap,

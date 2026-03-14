@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pl.srozga.gluqalc_api.common.MacroType;
 import pl.srozga.gluqalc_api.component.nutrition.NutritionCalculator;
 import pl.srozga.gluqalc_api.dto.response.NutritionalValuesResponse;
 import pl.srozga.gluqalc_api.dto.internal.UserCalcDataDto;
@@ -123,11 +124,11 @@ public class MealLogSummaryService {
     }
 
     private NutritionalValuesResponse recalculateMacrosForKcal(BigDecimal kcal, UserProfile profile) {
-        var ratios = nutritionCalculator.getMacroRatios(profile.getMacroStrategy());
+        Map<MacroType, BigDecimal> ratios = nutritionCalculator.getMacroRatios(profile.getMacroStrategyJson());
 
-        BigDecimal p = kcal.multiply(BigDecimal.valueOf(ratios.protein())).divide(new BigDecimal("4"), 0, RoundingMode.HALF_UP);
-        BigDecimal f = kcal.multiply(BigDecimal.valueOf(ratios.fat())).divide(new BigDecimal("9"), 0, RoundingMode.HALF_UP);
-        BigDecimal c = kcal.multiply(BigDecimal.valueOf(ratios.carb())).divide(new BigDecimal("4"), 0, RoundingMode.HALF_UP);
+        BigDecimal p = kcal.multiply(ratios.getOrDefault(MacroType.PROTEIN, BigDecimal.ZERO)).divide(new BigDecimal("4"), 0, RoundingMode.HALF_UP);
+        BigDecimal f = kcal.multiply(ratios.getOrDefault(MacroType.FAT, BigDecimal.ZERO)).divide(new BigDecimal("9"), 0, RoundingMode.HALF_UP);
+        BigDecimal c = kcal.multiply(ratios.getOrDefault(MacroType.CARBOHYDRATE, BigDecimal.ZERO)).divide(new BigDecimal("4"), 0, RoundingMode.HALF_UP);
 
         return new NutritionalValuesResponse(kcal, p, f, c);
     }

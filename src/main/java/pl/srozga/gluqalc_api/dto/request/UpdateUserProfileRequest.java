@@ -2,10 +2,11 @@ package pl.srozga.gluqalc_api.dto.request;
 
 import jakarta.validation.constraints.*;
 import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
-import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;
+import pl.srozga.gluqalc_api.common.MacroType;
 import pl.srozga.gluqalc_api.common.UserGender;
 import pl.srozga.gluqalc_api.validation.SumZero;
 import pl.srozga.gluqalc_api.validation.ValidHourlyMap;
+import pl.srozga.gluqalc_api.validation.ValidMacroStrategy;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -37,7 +38,8 @@ public record UpdateUserProfileRequest(
         @DecimalMax(value = "100.0", message = "Body fat percentage cannot exceed 100")
         BigDecimal bodyFatPercentage,
         BmrCalculationMethod bmrCalculationMethod,
-        MacroCalculationStrategy macroCalculationStrategy,
+        @ValidMacroStrategy
+        Map<MacroType, BigDecimal> macroStrategy,
 
         @Positive(message = "ISF must be positive")
         BigDecimal insulinSensitivityFactor,

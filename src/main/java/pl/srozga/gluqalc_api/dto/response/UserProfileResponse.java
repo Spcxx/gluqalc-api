@@ -1,7 +1,7 @@
 package pl.srozga.gluqalc_api.dto.response;
 
 import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
-import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;
+import pl.srozga.gluqalc_api.common.MacroType;
 import pl.srozga.gluqalc_api.common.UserGender;
 
 import java.math.BigDecimal;
@@ -20,7 +20,7 @@ public record UserProfileResponse(
         Map<DayOfWeek, Integer> weeklyKcalDistribution,
         BigDecimal bodyFatPercentage,
         BmrCalculationMethod bmrMethod,
-        MacroCalculationStrategy macroStrategy,
+        Map<MacroType, BigDecimal> macroStrategy,
         BigDecimal insulinSensitivityFactor,
         BigDecimal insulinFatProteinRatio,
         Map<Integer, BigDecimal> hourlyCarbRatio,

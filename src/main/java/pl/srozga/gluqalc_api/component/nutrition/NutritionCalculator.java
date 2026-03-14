@@ -1,7 +1,12 @@
 package pl.srozga.gluqalc_api.component.nutrition;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;
+import pl.srozga.gluqalc_api.common.MacroType;
 import pl.srozga.gluqalc_api.common.UserGender;
 import pl.srozga.gluqalc_api.dto.internal.UserCalcDataDto;
 import pl.srozga.gluqalc_api.entity.UserProfile;
@@ -11,9 +16,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.Map;
 
+@Slf4j
+@RequiredArgsConstructor
 @Component
 public class NutritionCalculator {
+    private final ObjectMapper objectMapper;
+
     public UserCalcDataDto calculate(UserProfile profile) {
         BigDecimal bmr = calculateBMR(profile);
 
@@ -24,14 +34,14 @@ public class NutritionCalculator {
         BigDecimal dailyGoalKcal = tdee.add(BigDecimal.valueOf(diff));
 
         // macro
-        if (profile.getMacroStrategy() == null)
+        if (profile.getMacroStrategyJson() == null)
             throw new DomainValidationException("Macro calculation strategy is required for macro calculation");
 
-        MacroRatios ratios = getMacroRatios(profile.getMacroStrategy());
+        Map<MacroType, BigDecimal> ratios = getMacroRatios(profile.getMacroStrategyJson());
 
-        BigDecimal pKcal = dailyGoalKcal.multiply(BigDecimal.valueOf(ratios.protein()));
-        BigDecimal fKcal = dailyGoalKcal.multiply(BigDecimal.valueOf(ratios.fat()));
-        BigDecimal cKcal = dailyGoalKcal.multiply(BigDecimal.valueOf(ratios.carb()));
+        BigDecimal pKcal = dailyGoalKcal.multiply(BigDecimal.valueOf(ratios.getOrDefault(MacroType.PROTEIN, BigDecimal.ZERO).doubleValue()));
+        BigDecimal fKcal = dailyGoalKcal.multiply(BigDecimal.valueOf(ratios.getOrDefault(MacroType.FAT, BigDecimal.ZERO).doubleValue()));
+        BigDecimal cKcal = dailyGoalKcal.multiply(BigDecimal.valueOf(ratios.getOrDefault(MacroType.CARBOHYDRATE, BigDecimal.ZERO).doubleValue()));
 
         return new UserCalcDataDto(
                 bmr.setScale(0, RoundingMode.HALF_UP),
@@ -104,14 +114,19 @@ public class NutritionCalculator {
         };
     }
 
-    public MacroRatios getMacroRatios(MacroCalculationStrategy strategy) {
-        return switch (strategy) {
-            case BALANCED -> new MacroRatios(0.2, 0.3, 0.5);
-            case HIGH_PROTEIN -> new MacroRatios(0.4, 0.25, 0.35);
-            case LOW_CARB -> new MacroRatios(0.3, 0.5, 0.2);
-            case KETO -> new MacroRatios(0.2, 0.75, 0.05);
-        };
-    }
+    public Map<MacroType, BigDecimal> getMacroRatios(String  strategy) {
+        if (strategy == null || strategy.isEmpty())
+            return null;
 
-    public record MacroRatios(double protein, double fat, double carb) {}
+        try {
+            return objectMapper.readValue(
+                    strategy,
+                    new TypeReference<>() {
+                    }
+            );
+        } catch (JsonProcessingException e) {
+            log.error("Error deserializing macro strategy", e);
+            return null;
+        }
+    }
 }
