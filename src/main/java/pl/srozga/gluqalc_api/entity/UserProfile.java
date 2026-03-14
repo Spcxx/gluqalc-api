@@ -8,14 +8,12 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
-import pl.srozga.gluqalc_api.common.InsulinFatProteinStrategy;
 import pl.srozga.gluqalc_api.common.MacroCalculationStrategy;
 import pl.srozga.gluqalc_api.common.UserGender;
 import pl.srozga.gluqalc_api.security.crypto.AttributeEncryptor;
 import pl.srozga.gluqalc_api.security.crypto.BigDecimalCryptoConverter;
 import pl.srozga.gluqalc_api.security.crypto.IntegerCryptoConverter;
 import pl.srozga.gluqalc_api.security.crypto.enumeration.BmrCalculationMethodEnumConverter;
-import pl.srozga.gluqalc_api.security.crypto.enumeration.InsulinFatProteinStrategyEnumConverter;
 import pl.srozga.gluqalc_api.security.crypto.enumeration.MacroCalculationStrategyEnumConverter;
 import pl.srozga.gluqalc_api.security.crypto.enumeration.UserGenderEnumConverter;
 
@@ -68,8 +66,6 @@ public class UserProfile {
     @Convert(converter = MacroCalculationStrategyEnumConverter.class)
     private MacroCalculationStrategy macroStrategy = MacroCalculationStrategy.BALANCED;
 
-    @Convert(converter = InsulinFatProteinStrategyEnumConverter.class)
-    private InsulinFatProteinStrategy ifpStrategy = InsulinFatProteinStrategy.NONE;
     @Convert(converter = BigDecimalCryptoConverter.class)
     private BigDecimal insulinSensitivityFactor;
     @Convert(converter = BigDecimalCryptoConverter.class)

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import pl.srozga.gluqalc_api.common.InsulinFatProteinStrategy;
 import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
 import pl.srozga.gluqalc_api.dto.response.MealEntryResponse;
 import pl.srozga.gluqalc_api.entity.MealEntry;
@@ -134,13 +133,10 @@ public class DiabetesCalculator {
         BigDecimal fatKcal = fat.multiply(FAT_KCAL);
         BigDecimal fpu = (proteinKcal.add(fatKcal)).divide(FPU_DIVISOR, 2, RoundingMode.HALF_UP);
 
-        if (profile == null || profile.getIfpStrategy() == null || profile.getIfpStrategy() == InsulinFatProteinStrategy.NONE)
-            return new DiabetesCalcDataDto(cu, fpu, null, null, null, null, "No insulin strategy configured");
-
         BigDecimal icr = getHourlyCarbRatio(profile, time);
         BigDecimal ifpRatio = profile.getInsulinFatProteinRatio() != null ? profile.getInsulinFatProteinRatio() : BigDecimal.ZERO;
 
-        return calculateDoseAndDuration(cu, fpu, icr, ifpRatio, glycemicIndex, profile.getIfpStrategy());
+        return calculateDoseAndDuration(cu, fpu, icr, ifpRatio, glycemicIndex);
     }
 
     private DiabetesCalcDataDto calculateDoseAndDuration(
@@ -148,58 +144,15 @@ public class DiabetesCalculator {
             BigDecimal fpu,
             BigDecimal icr,
             BigDecimal ifpRatio,
-            BigDecimal glycemicIndex,
-            InsulinFatProteinStrategy strategy
+            BigDecimal glycemicIndex
     ) {
         BigDecimal carbDose = cu.multiply(icr).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal fatProteinDose = BigDecimal.ZERO;
+        BigDecimal fatProteinDose = fpu.multiply(ifpRatio);
+
         int durationMinutes = 0;
-
-        switch (strategy) {
-            case WBT_STANDARD:
-                // dose: fpu * ratio
-                // time: fpu + 2 hours
-                fatProteinDose = fpu.multiply(ifpRatio);
-                if (fpu.compareTo(BigDecimal.ZERO) > 0) {
-                    int calculatedMinutes = (int) (fpu.doubleValue() * 60) + 120;
-                    durationMinutes = Math.min(calculatedMinutes, 480);
-                }
-                break;
-
-            case PANKOWSKA_ALGORITHM:
-                // dose: fpu * ratio
-                // time: 3h for FPU <=1, 4h for FPU <=2, 5h for FPU <=3, 8h for FPU >3
-                fatProteinDose = fpu.multiply(ifpRatio);
-                double wbtVal = fpu.doubleValue();
-
-                if (wbtVal <= 1.0)
-                    durationMinutes = 180; // 3h
-                else if (wbtVal <= 2.0)
-                    durationMinutes = 240; // 4h
-                else if (wbtVal <= 3.0)
-                    durationMinutes = 300; // 5h
-                else
-                    durationMinutes = 480; // 8h
-
-                break;
-
-            case FPU_STANDARD:
-                // dose: fpu * ratio
-                // time: standard 3-4h
-                fatProteinDose = fpu.multiply(ifpRatio);
-                durationMinutes = (fpu.doubleValue() > 0) ? 240 : 0;
-                break;
-
-            case PERCENTAGE_ADDON:
-                // dose: add a percentage of the carb dose (e.g., 20% more insulin than carb dose)
-                // time: standard 3h or based on carb dose
-                fatProteinDose = carbDose.multiply(ifpRatio);
-                durationMinutes = (fatProteinDose.compareTo(BigDecimal.ZERO) > 0) ? 180 : 0;
-                break;
-
-            case NONE:
-            default:
-                break;
+        if (fpu.compareTo(BigDecimal.ZERO) > 0) {
+            int calculatedMinutes = (int) (fpu.doubleValue() * 60) + 120;
+            durationMinutes = Math.min(calculatedMinutes, 480);
         }
 
         if (fatProteinDose.compareTo(MIN_EXTENDED_DOSE_THRESHOLD) < 0) {

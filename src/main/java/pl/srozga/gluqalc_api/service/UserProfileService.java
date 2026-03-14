@@ -56,7 +56,6 @@ public class UserProfileService {
         profile.setBodyFatPercentage(request.bodyFatPercentage());
         profile.setBmrMethod(request.bmrCalculationMethod());
         profile.setMacroStrategy(request.macroCalculationStrategy());
-        profile.setIfpStrategy(request.ifpStrategy());
         profile.setInsulinSensitivityFactor(request.insulinSensitivityFactor());
         profile.setInsulinFatProteinRatio(request.insulinFatProteinRatio());
 
@@ -143,7 +142,6 @@ public class UserProfileService {
                 p.getBodyFatPercentage(),
                 p.getBmrMethod(),
                 p.getMacroStrategy(),
-                p.getIfpStrategy(),
                 p.getInsulinSensitivityFactor(),
                 p.getInsulinFatProteinRatio(),
                 icrMap,

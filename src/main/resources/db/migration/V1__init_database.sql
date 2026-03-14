@@ -162,7 +162,6 @@ CREATE TABLE user_profiles (
     body_fat_percentage VARCHAR(255),
     bmr_method VARCHAR(255),
     macro_strategy VARCHAR(255),
-    ifp_strategy VARCHAR(255),
     insulin_sensitivity_factor VARCHAR(255),
     insulin_fat_protein_ratio VARCHAR(255),
     hourly_carb_ratio VARCHAR(2000),
