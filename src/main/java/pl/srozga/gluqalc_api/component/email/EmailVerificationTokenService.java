@@ -12,6 +12,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class EmailVerificationTokenService {
+    public static final Duration TOKEN_EXPIRATION = Duration.ofMinutes(15);
     private static final String REDIS_PREFIX = "auth:verify:";
     private static final String REDIS_PWD_RESET_PREFIX = "auth:password-reset:";
     private static final String REDIS_USER_MAPPING = "auth:verify:user:";
@@ -70,7 +71,7 @@ public class EmailVerificationTokenService {
 
             if (Boolean.FALSE.equals(redisTemplate.hasKey(REDIS_EMAIL_CHANGE_PREFIX + token))) {
                 String value = userId.toString() + "|" + newEmail;
-                redisTemplate.opsForValue().set(REDIS_EMAIL_CHANGE_PREFIX + token, value, Duration.ofMinutes(15));
+                redisTemplate.opsForValue().set(REDIS_EMAIL_CHANGE_PREFIX + token, value, TOKEN_EXPIRATION);
                 return token;
             }
             attempts++;
@@ -116,10 +117,9 @@ public class EmailVerificationTokenService {
             String token = String.valueOf(code);
 
             if (Boolean.FALSE.equals(redisTemplate.hasKey(prefix + token))) {
-                Duration expiration = Duration.ofMinutes(15);
-                redisTemplate.opsForValue().set(prefix + token, userId.toString(), expiration);
+                redisTemplate.opsForValue().set(prefix + token, userId.toString(), TOKEN_EXPIRATION);
                 if (saveUserMapping)
-                    redisTemplate.opsForValue().set(REDIS_USER_MAPPING + userId, token, expiration);
+                    redisTemplate.opsForValue().set(REDIS_USER_MAPPING + userId, token, TOKEN_EXPIRATION);
 
                 return token;
             }

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body, p, a {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+            color: #2e3034;
+        }
+        body {
+            background-color: #f2f6ff;
+            padding: 40px 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(72, 142, 255, 0.08);
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 20px 20px 20px;
+        }
+        .header img {
+            max-width: 140px;
+            height: auto;
+        }
+
+        .content {
+            padding: 0 40px 30px 40px;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+        .greeting {
+            font-size: 22px;
+            font-weight: 600;
+            color: #2e3034; 
+            margin-bottom: 15px;
+        }
+
+        .code-section {
+            text-align: center;
+            margin: 35px 0;
+            padding: 30px 20px;
+            background-color: #f4f9ff;
+            border-radius: 8px;
+            border: 1px dashed #a8cbff;
+        }
+        .code-label {
+            font-size: 13px;
+            color: #424448; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .code-box {
+            font-size: 36px;
+            font-weight: 700;
+            color: #488eff; 
+            letter-spacing: 8px;
+            margin: 0;
+        }
+        .validity {
+            font-size: 14px;
+            color: #ef4444; 
+            margin-top: 15px;
+            font-weight: 500;
+        }
+
+        .alert-section {
+            text-align: center;
+            margin: 35px 0;
+            padding: 30px 20px;
+            background-color: #fef2f2;
+            border-radius: 8px;
+            border: 1px dashed #fca5a5;
+        }
+        .alert-message {
+            font-size: 15px;
+            color: #991b1b;
+            font-weight: 500;
+        }
+
+        .footer {
+            background-color: #fbfdff;
+            padding: 25px 40px;
+            text-align: center;
+            font-size: 13px;
+            color: #424448;
+            border-top: 1px solid #eef3fb;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <img src="cid:logoImage" alt="GluQalc Logo">
+        </div>
+
+        <div class="content">
+            <p class="greeting">Hello,</p>
+
+            <p th:text="${message}">...</p>
+
+            <div class="code-section" th:if="${showCode}">
+                <p class="code-label" th:text="${subMessage}">Your code:</p>
+                <p class="code-box" th:text="${code}">000000</p>
+                <p class="validity">This code is valid for <span th:text="${validityMinutes}">15</span> minutes.</p>
+            </div>
+
+            <div class="alert-section" th:if="${showAlert}">
+                <p class="alert-message" th:text="${subMessage}">...</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p th:text="${footerMessage}">...</p>
+        </div>
+    </div>
+</body>
+</html>

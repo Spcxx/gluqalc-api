@@ -5,119 +5,142 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EmailService {
+
     private final JavaMailSender mailSender;
+    private final TemplateEngine templateEngine;
 
     @Value("${app.mail.from}")
     private String emailFrom;
 
     @Async
     public void sendVerificationEmail(String to, String token) {
-        sendEmail(to, "Email Verification Code", "Use the code below to verify your email address:", token);
+        Context context = createBaseContext(
+                "You have created a GluQalc account. Please use the code below to proceed.",
+                "If you did not request this email, please ignore it."
+        );
+
+        setupCodeSection(context, "Your email verification code:", token, (int) EmailVerificationTokenService.TOKEN_EXPIRATION.toMinutes());
+
+        sendGenericEmail(to, "GluQalc - Email Verification Code", context);
     }
 
     @Async
     public void sendPasswordResetEmail(String to, String token) {
-        sendEmail(to, "Password Reset Code", "Use the code below to reset your password:", token);
+        Context context = createBaseContext(
+                "You have requested a password reset for your GluQalc account. Please use the code below to proceed.",
+                "If you did not request a password reset, please ignore this email."
+        );
+
+        setupCodeSection(context, "Your password reset code:", token, (int) EmailVerificationTokenService.TOKEN_EXPIRATION.toMinutes());
+
+        sendGenericEmail(to, "GluQalc - Password Reset Code", context);
     }
 
     @Async
     public void sendEmailChangeConfirmationEmail(String to, String token) {
-        sendEmail(to, "Confirm Email Change", "Use the code below to confirm your new email address:", token);
+        Context context = createBaseContext(
+                "You have requested to change your email address. Please confirm this change using the code below.",
+                "If you did not request this change, please secure your account immediately."
+        );
+
+        setupCodeSection(context, "Your confirmation code:", token, (int) EmailVerificationTokenService.TOKEN_EXPIRATION.toMinutes());
+
+        sendGenericEmail(to, "GluQalc - Confirm Email Change", context);
     }
 
     @Async
     public void sendAccountDeletionEmail(String to, String token) {
-        sendEmail(to, "Account Deletion Request", "Use the code below to confirm the deletion of your account. This action cannot be undone:", token);
+        Context context = createBaseContext(
+                "You have requested to delete your GluQalc account. This action is irreversible. Use the code below to confirm.",
+                "If you did not request account deletion, please contact our support team immediately."
+        );
+
+        setupCodeSection(context, "Your deletion confirmation code:", token, 15);
+
+        sendGenericEmail(to, "GluQalc - Account Deletion Request", context);
     }
 
     @Async
-    public void sendSecurityAlertEmail(String to, String message) {
-        try {
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+    public void sendSecurityAlertEmail(String to, String alertMessage) {
+        Context context = createBaseContext(
+                "We have detected important security activity on your account that requires your attention.",
+                "If you did not authorize this action, please contact our support team immediately and reset your password."
+        );
 
-            String htmlContent = String.format("""
-                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ffcccc; border-radius: 8px; max-width: 600px; margin: 0 auto;">
-                          <h2 style="color: #d9534f; text-align: center;">Security Alert</h2>
-                          <p style="color: #333; font-size: 16px; line-height: 1.5;">%s</p>
-                          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-                          <p style="color: #777; font-size: 12px; text-align: center;">If you did not request this change, please contact our support team immediately and reset your password.</p>
-                    </div>
-                    """, message);
+        setupAlertSection(context, alertMessage);
 
-            helper.setText(htmlContent, true);
-            helper.setTo(to);
-            helper.setSubject("Security Alert: Your account details were changed");
-            helper.setFrom(emailFrom);
-
-            mailSender.send(mimeMessage);
-            log.info("Sent security alert email to {}", to);
-        } catch (MessagingException e) {
-            log.error("Failed to send security alert email to {}: {}", to, e.getMessage());
-        }
+        sendGenericEmail(to, "GluQalc - Security Alert", context);
     }
 
     @Async
     public void sendAccountDeletedConfirmationEmail(String to) {
-        try {
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+        Context context = createBaseContext(
+                "Your GluQalc account and all associated data have been scheduled for permanent deletion.",
+                "If you did not authorize this action, please contact our support immediately."
+        );
 
-            String htmlContent = """
-                    <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px; max-width: 600px; margin: 0 auto; text-align: center;">
-                          <h2 style="color: #555;">Account Successfully Deleted</h2>
-                          <p style="color: #333; font-size: 16px; line-height: 1.5; margin-top: 20px;">Your Gluqalc account and all associated data have been scheduled for permanent deletion.</p>
-                          <p style="color: #555; font-size: 14px; margin-top: 15px;">We are sorry to see you go! You are always welcome back if you change your mind.</p>
-                          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                          <p style="color: #999; font-size: 12px;">If you did not authorize this action, please contact our support immediately.</p>
-                    </div>
-                    """;
+        context.setVariable("showCode", false);
+        context.setVariable("showAlert", false);
 
-            helper.setText(htmlContent, true);
-            helper.setTo(to);
-            helper.setSubject("Your Gluqalc Account Has Been Deleted");
-            helper.setFrom(emailFrom);
-
-            mailSender.send(mimeMessage);
-            log.info("Sent account deletion final confirmation email to {}", to);
-        } catch (MessagingException e) {
-            log.error("Failed to send account deletion final confirmation email to {}: {}", to, e.getMessage());
-        }
+        sendGenericEmail(to, "GluQalc - Account Deleted", context);
     }
 
-    private void sendEmail(String to, String subject, String message, String token) {
+    private Context createBaseContext(String message, String footerMessage) {
+        Context context = new Context();
+        context.setVariable("message", message);
+        context.setVariable("footerMessage", footerMessage);
+        return context;
+    }
+
+    private void setupCodeSection(Context context, String subMessage, String code, int validityMinutes) {
+        context.setVariable("showCode", true);
+        context.setVariable("showAlert", false);
+        context.setVariable("subMessage", subMessage);
+        context.setVariable("code", code);
+        context.setVariable("validityMinutes", validityMinutes);
+    }
+
+    private void setupAlertSection(Context context, String alertMessage) {
+        context.setVariable("showCode", false);
+        context.setVariable("showAlert", true);
+        context.setVariable("subMessage", alertMessage);
+    }
+
+    private void sendGenericEmail(String to, String subject, Context context) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
 
-            String htmlContent = String.format("""
-                    <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-                          <h2 style="color: #333;">%s</h2>
-                          <p style="color: #555;">%s</p>
-                          <h1 style="color: #007BFF; letter-spacing: 5px; font-size: 32px; background: #f4f4f4; display: inline-block; padding: 10px 20px; border-radius: 8px;">%s</h1>
-                          <p style="color: #777; font-size: 12px; margin-top: 20px;">This code is valid for 15 minutes.</p>
-                          <p style="color: #777; font-size: 10px; margin-top: 10px;">If you did not request this email, please ignore it.</p>
-                    </div>
-                    """, subject, message, token);
+            String htmlContent = templateEngine.process("email", context);
 
-            helper.setText(htmlContent, true);
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setFrom(emailFrom);
 
+            helper.setText(htmlContent, true);
+
+            ClassPathResource logoImage = new ClassPathResource("static/logo.svg");
+            if (logoImage.exists())
+                helper.addInline("logoImage", logoImage);
+            else
+                log.warn("Logo image not found at static/logo.svg");
+
             mailSender.send(mimeMessage);
-            log.info("Sent email to {}", to);
+            log.info("Sent email [{}] to {}", subject, to);
         } catch (MessagingException e) {
-            log.error("Failed to send email to {}: {}", to, e.getMessage());
+            log.error("Failed to send email [{}] to {}: {}", subject, to, e.getMessage());
         }
     }
 }
