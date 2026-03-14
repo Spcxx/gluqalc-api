@@ -38,6 +38,7 @@ public class DiabetesCalculator {
         BigDecimal totalCarbs = BigDecimal.ZERO;
         BigDecimal totalProtein = BigDecimal.ZERO;
         BigDecimal totalFat = BigDecimal.ZERO;
+        BigDecimal totalFiber = BigDecimal.ZERO;
 
         if (entry.getCarbohydrates() != null)
             totalCarbs = entry.getCarbohydrates();
@@ -45,10 +46,12 @@ public class DiabetesCalculator {
             totalProtein = entry.getProtein();
         if (entry.getFat() != null)
             totalFat = entry.getFat();
+        if (entry.getFiber() != null)
+            totalFiber = entry.getFiber();
 
         Integer gi = entry.getGlycemicIndex();
 
-        return calculateInternal(totalCarbs, totalProtein, totalFat, BigDecimal.valueOf(gi), profile, time);
+        return calculateInternal(totalCarbs, totalProtein, totalFat, totalFiber, BigDecimal.valueOf(gi), profile, time);
     }
 
     public DiabetesCalcDataDto calculateForCategory(List<MealEntryResponse> entries, UserProfile profile, LocalTime time) {
@@ -58,6 +61,7 @@ public class DiabetesCalculator {
         BigDecimal totalCarbs = BigDecimal.ZERO;
         BigDecimal totalProtein = BigDecimal.ZERO;
         BigDecimal totalFat = BigDecimal.ZERO;
+        BigDecimal totalFiber = BigDecimal.ZERO;
 
         BigDecimal weightedGiSum = BigDecimal.ZERO;
         BigDecimal carbsWithGi = BigDecimal.ZERO;
@@ -70,6 +74,8 @@ public class DiabetesCalculator {
                 totalProtein = totalProtein.add(entry.nutrition().protein());
             if (entry.nutrition().fat() != null)
                 totalFat = totalFat.add(entry.nutrition().fat());
+            if (entry.nutrition().fiber() != null)
+                totalFiber = totalFiber.add(entry.nutrition().fiber());
 
             Integer gi = entry.nutrition().glycemicIndex();
             if (gi != null && carbs.compareTo(BigDecimal.ZERO) > 0) {
@@ -80,10 +86,10 @@ public class DiabetesCalculator {
 
         BigDecimal averageGi = calculateAverageGlycemicIndex(entries);
 
-        return calculateInternal(totalCarbs, totalProtein, totalFat, averageGi, profile, time);
+        return calculateInternal(totalCarbs, totalProtein, totalFat, totalFiber, averageGi, profile, time);
     }
 
-    public DiabetesCalcDataDto calculate(BigDecimal carbs, BigDecimal protein, BigDecimal fat, BigDecimal glycemicIndex, UserProfile profile, LocalTime time) {
+    public DiabetesCalcDataDto calculate(BigDecimal carbs, BigDecimal protein, BigDecimal fat, BigDecimal fiber, BigDecimal glycemicIndex, UserProfile profile, LocalTime time) {
         if (profile == null)
             return DiabetesCalcDataDto.empty();
 
@@ -91,6 +97,7 @@ public class DiabetesCalculator {
                 carbs != null ? carbs : BigDecimal.ZERO,
                 protein != null ? protein : BigDecimal.ZERO,
                 fat != null ? fat : BigDecimal.ZERO,
+                fiber != null ? fiber : BigDecimal.ZERO,
                 glycemicIndex != null ? glycemicIndex : BigDecimal.ZERO,
                 profile,
                 time
@@ -120,8 +127,9 @@ public class DiabetesCalculator {
         return null;
     }
 
-    private DiabetesCalcDataDto calculateInternal(BigDecimal carbs, BigDecimal protein, BigDecimal fat, BigDecimal glycemicIndex, UserProfile profile, LocalTime time) {
-        BigDecimal cu = carbs.divide(CU_DIVISOR, 2, RoundingMode.HALF_UP);
+    private DiabetesCalcDataDto calculateInternal(BigDecimal carbs, BigDecimal protein, BigDecimal fat, BigDecimal fiber, BigDecimal glycemicIndex, UserProfile profile, LocalTime time) {
+        BigDecimal cu = (carbs.subtract(fiber)).divide(CU_DIVISOR, 2, RoundingMode.HALF_UP);
+
         BigDecimal proteinKcal = protein.multiply(PROTEIN_KCAL);
         BigDecimal fatKcal = fat.multiply(FAT_KCAL);
         BigDecimal fpu = (proteinKcal.add(fatKcal)).divide(FPU_DIVISOR, 2, RoundingMode.HALF_UP);
@@ -132,19 +140,18 @@ public class DiabetesCalculator {
         BigDecimal icr = getHourlyCarbRatio(profile, time);
         BigDecimal ifpRatio = profile.getInsulinFatProteinRatio() != null ? profile.getInsulinFatProteinRatio() : BigDecimal.ZERO;
 
-        BigDecimal carbDose = cu.multiply(icr).setScale(2, RoundingMode.HALF_UP);
-
-        return calculateDoseAndDuration(cu, fpu, carbDose, ifpRatio, glycemicIndex, profile.getIfpStrategy());
+        return calculateDoseAndDuration(cu, fpu, icr, ifpRatio, glycemicIndex, profile.getIfpStrategy());
     }
 
     private DiabetesCalcDataDto calculateDoseAndDuration(
             BigDecimal cu,
             BigDecimal fpu,
-            BigDecimal carbDose,
+            BigDecimal icr,
             BigDecimal ifpRatio,
             BigDecimal glycemicIndex,
             InsulinFatProteinStrategy strategy
     ) {
+        BigDecimal carbDose = cu.multiply(icr).setScale(2, RoundingMode.HALF_UP);
         BigDecimal fatProteinDose = BigDecimal.ZERO;
         int durationMinutes = 0;
 
