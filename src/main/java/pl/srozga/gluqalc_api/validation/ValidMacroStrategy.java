@@ -2,6 +2,7 @@ package pl.srozga.gluqalc_api.validation;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;
+import pl.srozga.gluqalc_api.validation.validator.MacroStrategyValidator;
 
 import java.lang.annotation.*;
 

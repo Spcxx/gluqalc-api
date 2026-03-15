@@ -1,7 +1,8 @@
-package pl.srozga.gluqalc_api.validation;
+package pl.srozga.gluqalc_api.validation.validator;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import pl.srozga.gluqalc_api.validation.ValidHourlyMap;
 
 import java.math.BigDecimal;
 import java.util.Map;

@@ -1,8 +1,9 @@
-package pl.srozga.gluqalc_api.validation;
+package pl.srozga.gluqalc_api.validation.validator;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import pl.srozga.gluqalc_api.common.MacroType;
+import pl.srozga.gluqalc_api.validation.ValidMacroStrategy;
 
 import java.math.BigDecimal;
 import java.util.Map;

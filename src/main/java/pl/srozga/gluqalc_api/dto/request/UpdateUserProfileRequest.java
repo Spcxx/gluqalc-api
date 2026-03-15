@@ -17,9 +17,11 @@ public record UpdateUserProfileRequest(
         UserGender gender,
 
         @Positive(message = "Weight must be positive")
+        @Digits(integer = 3, fraction = 2, message = "Invalid weight format")
         BigDecimal weightInKg,
 
         @Positive(message = "Height must be positive")
+        @Digits(integer = 3, fraction = 1, message = "Invalid height format")
         BigDecimal heightInCm,
 
         @Past(message = "Birth date must be in the past")
@@ -27,24 +29,29 @@ public record UpdateUserProfileRequest(
 
         @DecimalMin(value = "1.0", message = "Activity level too low")
         @DecimalMax(value = "3.0", message = "Activity level too high")
+        @Digits(integer = 1, fraction = 2)
         BigDecimal physicalActivityLevel,
 
         Integer kcalGoalDifference,
-        @SumZero
+
+        @SumZero(message = "Weekly distribution must sum up to zero")
         Map<DayOfWeek, Integer> weeklyKcalDistribution,
 
         @Positive(message = "Body fat percentage must be positive")
         @DecimalMin(value = "0.0", message = "Body fat percentage must be at least 0")
         @DecimalMax(value = "100.0", message = "Body fat percentage cannot exceed 100")
+        @Digits(integer = 3, fraction = 1)
         BigDecimal bodyFatPercentage,
         BmrCalculationMethod bmrCalculationMethod,
         @ValidMacroStrategy
-        Map<MacroType, BigDecimal> macroStrategy,
+        Map<MacroType, @PositiveOrZero BigDecimal> macroStrategy,
 
         @Positive(message = "ISF must be positive")
+        @Digits(integer = 3, fraction = 2)
         BigDecimal insulinSensitivityFactor,
         @Positive(message = "IFP Ratio must be positive")
+        @Digits(integer = 3, fraction = 2)
         BigDecimal insulinFatProteinRatio,
         @ValidHourlyMap
-        Map<Integer, BigDecimal> hourlyCarbRatio
+        Map<@Min(0) @Max(23) Integer, @Positive BigDecimal> hourlyCarbRatio
 ) {}

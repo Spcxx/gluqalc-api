@@ -8,10 +8,10 @@ import jakarta.validation.constraints.Size;
 public record ConfirmEmailChangeRequest(
         @NotBlank(message = "New email is required")
         @Size(min = 5, max = 255, message = "Email must be between 5 and 255 characters")
-        @Email
+        @Email(message = "Invalid new email format")
         String newEmail,
         @NotBlank(message = "Verification code is required")
-        @Pattern(regexp = "\\d{6}", message = "Code must be 6 digits")
+        @Pattern(regexp = "^\\d{6}$", message = "Code must be exactly 6 digits")
         String code
 ) {
 }

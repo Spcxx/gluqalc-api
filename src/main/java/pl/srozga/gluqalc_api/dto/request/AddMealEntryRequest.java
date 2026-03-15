@@ -1,5 +1,6 @@
 package pl.srozga.gluqalc_api.dto.request;
 
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -16,6 +17,7 @@ public record AddMealEntryRequest(
         LocalDate date,
         @NotNull(message = "Quantity is required")
         @Positive(message = "Quantity must be greater than 0")
+        @Digits(integer = 4, fraction = 2, message = "Quantity must have max 4 digits and 2 decimals")
         BigDecimal quantity,
         UUID portionId
 ) {

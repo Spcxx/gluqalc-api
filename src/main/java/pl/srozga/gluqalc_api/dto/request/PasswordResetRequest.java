@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 public record PasswordResetRequest(
         @NotBlank(message = "Email is required")
         @Size(min = 5, max = 255, message = "Email must be between 5 and 255 characters")
-        @Email
+        @Email(message = "Invalid email format")
         String email
 ) {
 }

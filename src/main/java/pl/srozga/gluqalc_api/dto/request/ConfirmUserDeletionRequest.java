@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Pattern;
 
 public record ConfirmUserDeletionRequest(
         @NotBlank(message = "Verification code is required")
-        @Pattern(regexp = "\\d{6}", message = "Code must be 6 digits")
+        @Pattern(regexp = "^\\d{6}$", message = "Code must be exactly 6 digits")
         String code
 ) {
 }
