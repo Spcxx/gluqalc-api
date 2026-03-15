@@ -60,6 +60,7 @@ public class UserProfile {
     @Convert(converter = BigDecimalCryptoConverter.class)
     private BigDecimal bodyFatPercentage;
     @Convert(converter = BmrCalculationMethodEnumConverter.class)
+    @Builder.Default
     private BmrCalculationMethod bmrMethod = BmrCalculationMethod.MIFFLIN_ST_JEOR;
     @Convert(converter = AttributeEncryptor.class)
     @Column(name = "macro_strategy")
