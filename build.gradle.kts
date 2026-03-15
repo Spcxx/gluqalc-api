@@ -5,8 +5,11 @@ plugins {
 }
 
 group = "pl.srozga"
-version = "0.0.1-SNAPSHOT"
 description = "GluQalc API"
+
+springBoot {
+	buildInfo()
+}
 
 java {
 	toolchain {
