@@ -30,6 +30,7 @@ public class MealCategoryController {
 
     @PostMapping
     @PreAuthorize("isAuthenticated()")
+    @ResponseStatus(HttpStatus.CREATED)
     public MealCategoryResponse createCategory(
             @AuthenticationPrincipal AuthUser user,
             @Valid @RequestBody AddMealCategoryRequest request
