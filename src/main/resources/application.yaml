@@ -94,3 +94,6 @@ springdoc:
     enabled: true
     operations-sorter: alpha
     doc-expansion: list
+    tags-sorter: alpha
+    filter: true
+    persist-authorization: true
