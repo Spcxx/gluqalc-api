@@ -44,23 +44,15 @@ public class ProductController {
     private final ProductMapper productMapper;
     private final UserProfileRepository userProfileRepository;
 
-    // PRODUCT ENDPOINTS
-
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createProduct(
             @AuthenticationPrincipal AuthUser user,
             @Valid @RequestBody AddProductRequest request
     ) {
-        Object result;
-        if (user.roles().contains(UserRole.ADMIN)) {
-            ProductDto productDto = productService.createProduct(user.id(), request);
-            result = productMapper.toAdminResponse(productDto);
-        } else {
-            UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
-            ProductDto productDto = productService.proposeProduct(user.id(), request);
-            result = productMapper.toResponse(productDto, profile);
-        }
+        UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+        ProductDto productDto = productService.createProduct(user.id(), request);
+        Object result = (user.roles().contains(UserRole.ADMIN)) ? productMapper.toAdminResponse(productDto) : productMapper.toResponse(productDto, profile);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(result);
@@ -73,14 +65,8 @@ public class ProductController {
             @PathVariable UUID id
     ) {
         ProductDto productDto = productService.getProductSmart(id, user);
-
-        Object result;
-        if (user.roles().contains(UserRole.ADMIN))
-            result = productMapper.toAdminResponse(productDto);
-        else {
-            UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
-            result = productMapper.toResponse(productDto, profile);
-        }
+        UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+        Object result = (user.roles().contains(UserRole.ADMIN)) ? productMapper.toAdminResponse(productDto) : productMapper.toResponse(productDto, profile);
 
         return ResponseEntity.ok(result);
     }
@@ -98,14 +84,8 @@ public class ProductController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getProductByBarcode(@AuthenticationPrincipal AuthUser user, @PathVariable String barcode) {
         ProductDto productDto = productService.getProductSmartByBarcode(barcode, user);
-
-        Object result;
-        if (user.roles().contains(UserRole.ADMIN))
-            result = productMapper.toAdminResponse(productDto);
-        else {
-            UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
-            result = productMapper.toResponse(productDto, profile);
-        }
+        UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+        Object result = (user.roles().contains(UserRole.ADMIN)) ? productMapper.toAdminResponse(productDto) : productMapper.toResponse(productDto, profile);
 
         return ResponseEntity.ok(result);
     }
@@ -148,8 +128,6 @@ public class ProductController {
     public void deleteProduct(@PathVariable UUID id) {
         productService.softDeleteProduct(id);
     }
-
-    // PORTION ENDPOINTS
 
     @PostMapping("/{productId}/portions")
     @ResponseStatus(HttpStatus.CREATED)
@@ -197,8 +175,6 @@ public class ProductController {
         else
             productService.deletePortionUser(portionId, user);
     }
-
-    // CHANGES ENDPOINT
 
     @GetMapping("/changes")
     @PreAuthorize("hasRole('ADMIN')")
