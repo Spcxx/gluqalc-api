@@ -38,7 +38,7 @@ dependencies {
 	compileOnly("org.projectlombok:lombok")
 	runtimeOnly("org.postgresql:postgresql")
 	annotationProcessor("org.projectlombok:lombok")
-	developmentOnly("org.springframework.boot:spring-boot-starter-devtools")
+	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
 	implementation("com.auth0:java-jwt:4.5.0")
