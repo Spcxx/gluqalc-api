@@ -33,7 +33,6 @@ public class NutritionCalculator {
         int diff = profile.getKcalGoalDifference() != null ? profile.getKcalGoalDifference() : 0;
         BigDecimal dailyGoalKcal = tdee.add(BigDecimal.valueOf(diff));
 
-        // macro
         if (profile.getMacroStrategyJson() == null)
             throw new DomainValidationException("Macro calculation strategy is required for macro calculation");
 

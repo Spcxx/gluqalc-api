@@ -7,16 +7,16 @@ public record DailyStatsExportRow(
         LocalDate date,
         String dayOfWeek,
         int mealsCount,
-        String eatingWindow,      // NOWE
+        String eatingWindow,
         BigDecimal kcalConsumed,
         BigDecimal kcalGoal,
         BigDecimal balance,
         BigDecimal proteinGrams,
         BigDecimal fatGrams,
         BigDecimal carbsGrams,
-        BigDecimal sugarsGrams,   // NOWE
-        BigDecimal fiberGrams,    // NOWE
-        BigDecimal glycemicLoad,  // NOWE
+        BigDecimal sugarsGrams,
+        BigDecimal fiberGrams,
+        BigDecimal glycemicLoad,
         String macroRatio,
         BigDecimal cu,
         BigDecimal fpu,
