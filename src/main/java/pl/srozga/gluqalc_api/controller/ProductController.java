@@ -62,9 +62,15 @@ public class ProductController {
             @AuthenticationPrincipal AuthUser user,
             @Valid @RequestBody AddProductRequest request
     ) {
-        UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
-        ProductDto productDto = productService.createProduct(user.id(), request);
-        Object result = (user.roles().contains(UserRole.ADMIN)) ? productMapper.toAdminResponse(productDto) : productMapper.toResponse(productDto, profile);
+        Object result;
+        if (user.roles().contains(UserRole.ADMIN)) {
+            ProductDto productDto = productService.createProduct(user.id(), request);
+            result = productMapper.toAdminResponse(productDto);
+        } else {
+            UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+            ProductDto productDto = productService.proposeProduct(user.id(), request);
+            result = productMapper.toResponse(productDto, profile);
+        }
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(result);
