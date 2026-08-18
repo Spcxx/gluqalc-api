@@ -26,7 +26,7 @@ import java.util.UUID;
 
 @Tag(name = "03. Users & Account", description = "Endpoints for account management, security settings, session tracking and admin user administration")
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
@@ -37,7 +37,7 @@ public class UserController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required")
     })
-    @GetMapping
+    @GetMapping("/admin/users")
     @PreAuthorize("hasRole('ADMIN')")
     public List<UserAdminResponse> getAllUsers() {
         return userService.getAllActiveUsers();
@@ -50,7 +50,7 @@ public class UserController {
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required"),
             @ApiResponse(responseCode = "404", description = "Not found: User does not exist")
     })
-    @GetMapping("/{id}")
+    @GetMapping("/admin/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public UserAdminResponse getUser(@PathVariable UUID id) {
         return userService.getUserById(id);
@@ -63,7 +63,7 @@ public class UserController {
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required"),
             @ApiResponse(responseCode = "404", description = "Not found")
     })
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/admin/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable UUID id) {
@@ -77,7 +77,7 @@ public class UserController {
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required"),
             @ApiResponse(responseCode = "404", description = "Not found")
     })
-    @GetMapping("/{id}/roles")
+    @GetMapping("/admin/users/{id}/roles")
     @PreAuthorize("hasRole('ADMIN')")
     public Set<UserRole> getUserRoles(@PathVariable UUID id) {
         return userService.getUserRoles(id);
@@ -92,7 +92,7 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "Not found"),
             @ApiResponse(responseCode = "409", description = "Conflict: User already has this role")
     })
-    @PostMapping("/{id}/roles")
+    @PostMapping("/admin/users/{id}/roles")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void addRole(@PathVariable UUID id, @Valid @RequestBody RoleRequest request) {
@@ -108,7 +108,7 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "Not found"),
             @ApiResponse(responseCode = "409", description = "Conflict: User does not have this role")
     })
-    @DeleteMapping("/{id}/roles/{role}")
+    @DeleteMapping("/admin/users/{id}/roles/{role}")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeRole(@PathVariable UUID id, @PathVariable UserRole role) {
@@ -121,7 +121,7 @@ public class UserController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "404", description = "Not found")
     })
-    @GetMapping("/me/sessions")
+    @GetMapping("/users/me/sessions")
     @PreAuthorize("isAuthenticated()")
     public List<DeviceSessionResponse> getMySessions(@AuthenticationPrincipal AuthUser authUser) {
         return userService.getUserSessions(authUser.id());
@@ -132,7 +132,7 @@ public class UserController {
             @ApiResponse(responseCode = "204", description = "Session successfully revoked"),
             @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
-    @DeleteMapping("/me/sessions/{deviceId}")
+    @DeleteMapping("/users/me/sessions/{deviceId}")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revokeMySession(
@@ -150,7 +150,7 @@ public class UserController {
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required"),
             @ApiResponse(responseCode = "404", description = "Not found")
     })
-    @GetMapping("/{id}/sessions")
+    @GetMapping("/admin/users/{id}/sessions")
     @PreAuthorize("hasRole('ADMIN')")
     public List<DeviceSessionResponse> getUserSessionsByAdmin(@PathVariable UUID id) {
         return userService.getUserSessions(id);
@@ -162,7 +162,7 @@ public class UserController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required")
     })
-    @DeleteMapping("/{id}/sessions/{deviceId}")
+    @DeleteMapping("/admin/users/{id}/sessions/{deviceId}")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revokeUserSessionByAdmin(
@@ -254,7 +254,7 @@ public class UserController {
             @ApiResponse(responseCode = "429", description = "Too many requests")
     })
     @RateLimit(maxRequests = 3, timeWindowSeconds = 300)
-    @PostMapping("/me/delete/request")
+    @PostMapping("/users/me/delete/request")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void requestMyAccountDeletion(@AuthenticationPrincipal AuthUser authUser) {
@@ -270,7 +270,7 @@ public class UserController {
             @ApiResponse(responseCode = "429", description = "Too many requests")
     })
     @RateLimit(maxRequests = 5, timeWindowSeconds = 60)
-    @PostMapping("/me/delete/confirm")
+    @PostMapping("/users/me/delete/confirm")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void confirmMyAccountDeletion(
