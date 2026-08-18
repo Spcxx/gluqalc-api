@@ -41,7 +41,7 @@ import java.util.UUID;
 @Tag(name = "07. Products", description = "Endpoints for managing the global product database, user proposals and barcode scanning")
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/products")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 @Validated
 public class ProductController {
@@ -56,7 +56,7 @@ public class ProductController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "409", description = "Conflict: Barcode already exists or invalid macro relations")
     })
-    @PostMapping
+    @PostMapping("/products")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createProduct(
             @AuthenticationPrincipal AuthUser user,
@@ -82,7 +82,7 @@ public class ProductController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "404", description = "Not found: Product does not exist or is not visible to the user")
     })
-    @GetMapping("/{id}")
+    @GetMapping("/products/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getProduct(
             @AuthenticationPrincipal AuthUser user,
@@ -102,7 +102,7 @@ public class ProductController {
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required"),
             @ApiResponse(responseCode = "404", description = "Not found")
     })
-    @GetMapping("/{id}/raw")
+    @GetMapping("/admin/products/{id}/raw")
     @PreAuthorize("hasRole('ADMIN')")
     public ProductAdminResponse getProductRaw(
             @PathVariable UUID id
@@ -117,7 +117,7 @@ public class ProductController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "404", description = "Not found: No product with this barcode exists or is visible")
     })
-    @GetMapping("/barcode/{barcode}")
+    @GetMapping("/products/barcode/{barcode}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getProductByBarcode(@AuthenticationPrincipal AuthUser user, @PathVariable String barcode) {
         ProductDto productDto = productService.getProductSmartByBarcode(barcode, user);
@@ -134,7 +134,7 @@ public class ProductController {
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required"),
             @ApiResponse(responseCode = "404", description = "Not found")
     })
-    @GetMapping("/barcode/{barcode}/raw")
+    @GetMapping("/admin/products/barcode/{barcode}/raw")
     @PreAuthorize("hasRole('ADMIN')")
     public ProductAdminResponse getProductByBarcodeRaw(
             @PathVariable String barcode
@@ -152,7 +152,7 @@ public class ProductController {
             @ApiResponse(responseCode = "404", description = "Not found"),
             @ApiResponse(responseCode = "409", description = "Conflict: Another product uses this barcode or invalid macro relations")
     })
-    @PatchMapping("/{id}")
+    @PatchMapping("/products/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateProduct(
             @PathVariable UUID id,
@@ -176,7 +176,7 @@ public class ProductController {
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required"),
             @ApiResponse(responseCode = "404", description = "Not found")
     })
-    @PostMapping("/{id}/accept")
+    @PostMapping("/admin/products/{id}/accept")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.OK)
     public void approveProduct(@AuthenticationPrincipal AuthUser user, @PathVariable UUID id) {
@@ -190,7 +190,7 @@ public class ProductController {
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required"),
             @ApiResponse(responseCode = "404", description = "Not found")
     })
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/admin/products/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteProduct(@PathVariable UUID id) {
@@ -205,7 +205,7 @@ public class ProductController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "404", description = "Not found: Product does not exist")
     })
-    @PostMapping("/{productId}/portions")
+    @PostMapping("/products/{productId}/portions")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> addPortion(
@@ -231,7 +231,7 @@ public class ProductController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "404", description = "Not found: Portion or Product does not exist")
     })
-    @PatchMapping("/portions/{portionId}")
+    @PatchMapping("/products/portions/{portionId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updatePortion(
             @PathVariable UUID portionId,
@@ -254,7 +254,7 @@ public class ProductController {
             @ApiResponse(responseCode = "404", description = "Not found"),
             @ApiResponse(responseCode = "409", description = "Conflict: User attempted to delete a public portion or one they do not own")
     })
-    @DeleteMapping("/portions/{portionId}")
+    @DeleteMapping("/products/portions/{portionId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("isAuthenticated()")
     public void deletePortion(
@@ -273,7 +273,7 @@ public class ProductController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required")
     })
-    @GetMapping("/changes")
+    @GetMapping("/admin/products/changes")
     @PreAuthorize("hasRole('ADMIN')")
     public List<ProductChangeResponse> getPendingProductChanges() {
         return productService.getPendingProductChanges();
@@ -285,7 +285,7 @@ public class ProductController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required")
     })
-    @GetMapping("/portions/changes")
+    @GetMapping("/admin/products/portions/changes")
     @PreAuthorize("hasRole('ADMIN')")
     public List<PortionChangeResponse> getPendingPortionChanges() {
         return productService.getPendingPortionChanges();
@@ -298,7 +298,7 @@ public class ProductController {
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required"),
             @ApiResponse(responseCode = "404", description = "Not found: Change or associated product does not exist")
     })
-    @PostMapping("/changes/{changeId}/accept")
+    @PostMapping("/admin/products/changes/{changeId}/accept")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.OK)
     public void approveProductChange(@PathVariable UUID changeId) {
@@ -312,7 +312,7 @@ public class ProductController {
             @ApiResponse(responseCode = "403", description = "Forbidden: Admin role required"),
             @ApiResponse(responseCode = "404", description = "Not found: Change or associated portion does not exist")
     })
-    @PostMapping("/portions/changes/{changeId}/accept")
+    @PostMapping("/admin/products/portions/changes/{changeId}/accept")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.OK)
     public void approvePortionChange(@PathVariable UUID changeId) {
@@ -327,7 +327,7 @@ public class ProductController {
             @ApiResponse(responseCode = "429", description = "Too many requests (Rate limit exceeded)")
     })
     @RateLimit(maxRequests = 60, timeWindowSeconds = 60)
-    @GetMapping("/search")
+    @GetMapping("/products/search")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<?>> searchUnified(
             @Size(min = 3, max = 64) @RequestParam String q,
@@ -354,7 +354,7 @@ public class ProductController {
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "404", description = "Not found: Product does not exist in the external provider")
     })
-    @PostMapping("/import")
+    @PostMapping("/products/import")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> importProduct(
             @Valid @RequestBody ImportProductRequest request,
