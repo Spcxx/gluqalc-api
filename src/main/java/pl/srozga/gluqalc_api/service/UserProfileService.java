@@ -23,7 +23,6 @@ import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.Period;
 import java.util.Map;
 import java.util.UUID;
 
@@ -145,7 +144,7 @@ public class UserProfileService {
                 p.getWeightInKg(),
                 p.getHeightInCm(),
                 p.getBirthDate() != null ? LocalDate.parse(p.getBirthDate()) : null,
-                calculateAge(p.getBirthDate() != null ? LocalDate.parse(p.getBirthDate()) : null),
+                p.getAge(),
                 p.getPhysicalActivityLevel(),
                 p.getKcalGoalDifference(),
                 distribution,
@@ -157,11 +156,5 @@ public class UserProfileService {
                 icrMap,
                 targets
         );
-    }
-
-    private Integer calculateAge(LocalDate birthDate) {
-        if (birthDate == null)
-            return null;
-        return Period.between(birthDate, LocalDate.now()).getYears();
     }
 }

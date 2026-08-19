@@ -1,7 +1,8 @@
 package pl.srozga.gluqalc_api.common;
 
 public enum BmrCalculationMethod {
-    MIFFLIN_ST_JEOR,
     HARRIS_BENEDICT,
+    MIFFLIN_ST_JEOR,
     KATCH_MCARDLE,
+    OWEN
 }

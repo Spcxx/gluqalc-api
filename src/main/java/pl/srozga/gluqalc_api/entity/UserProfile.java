@@ -17,6 +17,8 @@ import pl.srozga.gluqalc_api.security.crypto.enumeration.UserGenderEnumConverter
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -80,6 +82,12 @@ public class UserProfile {
     @LastModifiedDate
     @Column(nullable = false)
     private Instant updatedAt;
+
+    public Integer getAge() {
+        if (birthDate == null)
+            return null;
+        return Period.between(LocalDate.parse(birthDate), LocalDate.now()).getYears();
+    }
 
     @Override
     public final boolean equals(Object o) {
