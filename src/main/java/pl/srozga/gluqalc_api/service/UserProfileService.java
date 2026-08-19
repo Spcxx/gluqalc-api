@@ -57,6 +57,7 @@ public class UserProfileService {
         profile.setBmrMethod(request.bmrCalculationMethod());
         profile.setInsulinSensitivityFactor(request.insulinSensitivityFactor());
         profile.setInsulinFatProteinRatio(request.insulinFatProteinRatio());
+        profile.setInsulinDeliveryMethod(request.insulinDeliveryMethod());
 
         if (request.hourlyCarbRatio() != null) {
             try {
@@ -153,6 +154,7 @@ public class UserProfileService {
                 macroStrategy,
                 p.getInsulinSensitivityFactor(),
                 p.getInsulinFatProteinRatio(),
+                p.getInsulinDeliveryMethod(),
                 icrMap,
                 targets
         );

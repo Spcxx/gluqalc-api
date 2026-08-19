@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import pl.srozga.gluqalc_api.common.InsulinDeliveryMethod;
 import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
 import pl.srozga.gluqalc_api.dto.response.MealEntryResponse;
 import pl.srozga.gluqalc_api.entity.MealEntry;
@@ -50,7 +51,7 @@ public class DiabetesCalculator {
 
         Integer gi = entry.getGlycemicIndex();
 
-        return calculateInternal(totalCarbs, totalProtein, totalFat, totalFiber, BigDecimal.valueOf(gi), profile, time);
+        return calculateInternal(totalCarbs, totalProtein, totalFat, totalFiber, gi != null ? BigDecimal.valueOf(gi) : null, profile, time);
     }
 
     public DiabetesCalcDataDto calculateForCategory(List<MealEntryResponse> entries, UserProfile profile, LocalTime time) {
@@ -127,7 +128,8 @@ public class DiabetesCalculator {
     }
 
     private DiabetesCalcDataDto calculateInternal(BigDecimal carbs, BigDecimal protein, BigDecimal fat, BigDecimal fiber, BigDecimal glycemicIndex, UserProfile profile, LocalTime time) {
-        BigDecimal cu = (carbs.subtract(fiber)).divide(CU_DIVISOR, 2, RoundingMode.HALF_UP);
+        BigDecimal netCarbs = carbs.subtract(fiber).max(BigDecimal.ZERO);
+        BigDecimal cu = netCarbs.divide(CU_DIVISOR, 2, RoundingMode.HALF_UP);
 
         BigDecimal proteinKcal = protein.multiply(PROTEIN_KCAL);
         BigDecimal fatKcal = fat.multiply(FAT_KCAL);
@@ -135,8 +137,9 @@ public class DiabetesCalculator {
 
         BigDecimal icr = getHourlyCarbRatio(profile, time);
         BigDecimal ifpRatio = profile.getInsulinFatProteinRatio() != null ? profile.getInsulinFatProteinRatio() : BigDecimal.ZERO;
+        InsulinDeliveryMethod insulinDeliveryMethod = profile.getInsulinDeliveryMethod();
 
-        return calculateDoseAndDuration(cu, fpu, icr, ifpRatio, glycemicIndex);
+        return calculateDoseAndDuration(cu, fpu, icr, ifpRatio, glycemicIndex, insulinDeliveryMethod);
     }
 
     private DiabetesCalcDataDto calculateDoseAndDuration(
@@ -144,7 +147,8 @@ public class DiabetesCalculator {
             BigDecimal fpu,
             BigDecimal icr,
             BigDecimal ifpRatio,
-            BigDecimal glycemicIndex
+            BigDecimal glycemicIndex,
+            InsulinDeliveryMethod insulinDeliveryMethod
     ) {
         BigDecimal carbDose = cu.multiply(icr).setScale(2, RoundingMode.HALF_UP);
         BigDecimal fatProteinDose = fpu.multiply(ifpRatio);
@@ -163,7 +167,7 @@ public class DiabetesCalculator {
         BigDecimal totalDose = carbDose.add(fatProteinDose).setScale(2, RoundingMode.HALF_UP);
         fatProteinDose = fatProteinDose.setScale(2, RoundingMode.HALF_UP);
 
-        String description = generateTherapeuticAdvice(carbDose, fatProteinDose, durationMinutes, glycemicIndex);
+        String description = generateTherapeuticAdvice(carbDose, fatProteinDose, durationMinutes, glycemicIndex, insulinDeliveryMethod);
 
         return new DiabetesCalcDataDto(
                 cu.setScale(1, RoundingMode.HALF_UP),
@@ -197,43 +201,90 @@ public class DiabetesCalculator {
         }
     }
 
-    private String generateTherapeuticAdvice(BigDecimal carbDose, BigDecimal extendedDose, int durationMinutes, BigDecimal gi) {
+    private String generateTherapeuticAdvice(
+            BigDecimal carbDose,
+            BigDecimal extendedDose,
+            int durationMinutes,
+            BigDecimal gi,
+            InsulinDeliveryMethod insulinDeliveryMethod
+    ) {
         StringBuilder advice = new StringBuilder();
-
-        if (gi != null && gi.compareTo(BigDecimal.ZERO) > 0) {
-            if (gi.compareTo(new BigDecimal("70")) >= 0) {
-                advice.append("High Glycemic Index: Pre-bolus is recommended (15-20 min before eating).");
-            } else if (gi.compareTo(new BigDecimal("55")) <= 0) {
-                advice.append("Low Glycemic Index: Bolus at meal start is recommended or split the carb dose.");
-            } else {
-                advice.append("Medium Glycemic Index: Use standard bolus timing (5-10 min before eating).");
-            }
-        }
-
         boolean hasCarbs = carbDose.compareTo(BigDecimal.ZERO) > 0;
         boolean hasExtended = extendedDose.compareTo(BigDecimal.ZERO) > 0;
 
-        if (!advice.isEmpty())
-            advice.append(" ");
-        if (hasCarbs && hasExtended) {
-            int hours = durationMinutes / 60;
-            int mins = durationMinutes % 60;
-            String timeStr = mins > 0 ? String.format("%dh %dmin", hours, mins) : String.format("%dh", hours);
+        if (insulinDeliveryMethod == InsulinDeliveryMethod.PEN)
+            return buildPenAdvice(advice, gi, hasCarbs, hasExtended, extendedDose).toString().trim();
+        if (insulinDeliveryMethod == InsulinDeliveryMethod.PUMP)
+            return buildPumpAdvice(advice, gi, hasCarbs, hasExtended, carbDose, extendedDose, durationMinutes).toString().trim();
 
-            advice.append(String.format("Use Dual/Multiwave Bolus: Give %sU immediately, and extend %sU over %s.",
+        return "No advice available for the selected insulin delivery method.";
+    }
+
+    private StringBuilder buildPumpAdvice(
+            StringBuilder advice,
+            BigDecimal gi,
+            boolean hasCarbs,
+            boolean hasExtended,
+            BigDecimal carbDose,
+            BigDecimal extendedDose,
+            int durationMinutes
+    ) {
+        advice.append("For rapid-acting insulin give bolus 15-20 min before meal; for ultra-rapid insulin 2-10 min before meal.");
+
+        if (gi != null && gi.compareTo(new BigDecimal("55")) < 0)
+            advice.append(" Low GI meal: consider an extended (square) bolus.");
+
+        if (hasCarbs && hasExtended) {
+            String timeStr = formatDuration(durationMinutes);
+            advice.append(String.format(" Meal with FPU: use dual/combo bolus - %sU now and %sU extended over %s.",
                     carbDose, extendedDose, timeStr));
         } else if (hasExtended) {
-            int hours = durationMinutes / 60;
-            int mins = durationMinutes % 60;
-            String timeStr = mins > 0 ? String.format("%dh %dmin", hours, mins) : String.format("%dh", hours);
-
-            advice.append(String.format("Use Square/Extended Bolus: %sU over %s.", extendedDose, timeStr));
+            String timeStr = formatDuration(durationMinutes);
+            advice.append(String.format(" Use extended bolus: %sU over %s.", extendedDose, timeStr));
         } else if (hasCarbs) {
-            advice.append("Normal bolus is sufficient.");
+            advice.append(" Standard bolus is sufficient.");
         } else {
-            advice.append("No insulin required for this meal.");
+            advice.append(" No insulin required for this meal.");
         }
 
-        return advice.toString().trim();
+        return advice;
+    }
+
+    private StringBuilder buildPenAdvice(
+            StringBuilder advice,
+            BigDecimal gi,
+            boolean hasCarbs,
+            boolean hasExtended,
+            BigDecimal extendedDose
+    ) {
+        if (gi != null && gi.compareTo(BigDecimal.ZERO) > 0) {
+            if (gi.compareTo(new BigDecimal("70")) >= 0) {
+                advice.append("High GI meal: pre-bolus is recommended (rapid insulin typically 15-20 min before meal, ultra-rapid 2-10 min before meal).");
+            } else if (gi.compareTo(new BigDecimal("35")) < 0) {
+                advice.append("Very low GI meal: consider giving insulin during the meal.");
+            } else if (gi.compareTo(new BigDecimal("55")) < 0) {
+                advice.append("Low GI meal: consider giving insulin at meal start or shortly after first bites.");
+            } else {
+                advice.append("Medium GI meal: use standard timing, usually close to meal start.");
+            }
+        }
+
+        if (!advice.isEmpty()) {
+            advice.append(" ");
+        }
+
+        if (hasExtended)
+            advice.append(String.format("High FPU meal: consider second injection 1-3 hours after meal (about %sU).", extendedDose));
+
+        if (!hasCarbs && !hasExtended)
+            advice.append("No insulin required for this meal.");
+
+        return advice;
+    }
+
+    private String formatDuration(int durationMinutes) {
+        int hours = durationMinutes / 60;
+        int mins = durationMinutes % 60;
+        return mins > 0 ? String.format("%dh %dmin", hours, mins) : String.format("%dh", hours);
     }
 }

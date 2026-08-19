@@ -2,6 +2,7 @@ package pl.srozga.gluqalc_api.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
+import pl.srozga.gluqalc_api.common.InsulinDeliveryMethod;
 import pl.srozga.gluqalc_api.common.MacroType;
 import pl.srozga.gluqalc_api.common.UserGender;
 import java.math.BigDecimal;
@@ -37,6 +38,8 @@ public record UserProfileResponse(
         BigDecimal insulinSensitivityFactor,
         @Schema(description = "Insulin to Fat/Protein Ratio: units needed per 1 WBT", example = "1.20")
         BigDecimal insulinFatProteinRatio,
+        @Schema(description = "Insulin delivery method selected by the user", example = "PUMP")
+        InsulinDeliveryMethod insulinDeliveryMethod,
         @Schema(description = "Insulin to Carbohydrate Ratio (ICR) by hour of the day", example = "{\"8\": 1.1, \"14\": 0.9}")
         Map<Integer, BigDecimal> hourlyCarbRatio,
         @Schema(description = "Aggregated metabolic and nutritional targets calculated based on the profile data")
