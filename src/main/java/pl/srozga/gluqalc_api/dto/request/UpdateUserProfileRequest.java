@@ -3,6 +3,7 @@ package pl.srozga.gluqalc_api.dto.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
+import pl.srozga.gluqalc_api.common.InsulinDeliveryMethod;
 import pl.srozga.gluqalc_api.common.MacroType;
 import pl.srozga.gluqalc_api.common.UserGender;
 import pl.srozga.gluqalc_api.validation.SumZero;
@@ -58,6 +59,8 @@ public record UpdateUserProfileRequest(
         @Positive(message = "IFP Ratio must be positive")
         @Digits(integer = 3, fraction = 2)
         BigDecimal insulinFatProteinRatio,
+        @Schema(description = "Preferred insulin delivery method", example = "PEN")
+        InsulinDeliveryMethod insulinDeliveryMethod,
         @Schema(description = "Insulin to Carbohydrate Ratio (ICR) mapped by hour of the day (0-23)", example = "{\"8\": 1.2, \"14\": 1.0, \"20\": 1.5}")
         @ValidHourlyMap
         Map<@Min(0) @Max(23) Integer, @Positive BigDecimal> hourlyCarbRatio
