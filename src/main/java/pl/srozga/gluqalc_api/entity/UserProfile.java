@@ -8,11 +8,13 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
+import pl.srozga.gluqalc_api.common.InsulinDeliveryMethod;
 import pl.srozga.gluqalc_api.common.UserGender;
 import pl.srozga.gluqalc_api.security.crypto.AttributeEncryptor;
 import pl.srozga.gluqalc_api.security.crypto.BigDecimalCryptoConverter;
 import pl.srozga.gluqalc_api.security.crypto.IntegerCryptoConverter;
 import pl.srozga.gluqalc_api.security.crypto.enumeration.BmrCalculationMethodEnumConverter;
+import pl.srozga.gluqalc_api.security.crypto.enumeration.InsulinDeliveryMethodEnumConverter;
 import pl.srozga.gluqalc_api.security.crypto.enumeration.UserGenderEnumConverter;
 
 import java.math.BigDecimal;
@@ -72,6 +74,8 @@ public class UserProfile {
     private BigDecimal insulinSensitivityFactor;
     @Convert(converter = BigDecimalCryptoConverter.class)
     private BigDecimal insulinFatProteinRatio;
+    @Convert(converter = InsulinDeliveryMethodEnumConverter.class)
+    private InsulinDeliveryMethod insulinDeliveryMethod;
     @Convert(converter = AttributeEncryptor.class)
     @Column(name = "hourly_carb_ratio")
     private String hourlyCarbRatioJson;
