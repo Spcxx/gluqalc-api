@@ -22,12 +22,14 @@ import pl.srozga.gluqalc_api.component.product.ProductMapper;
 import pl.srozga.gluqalc_api.component.rateLimit.RateLimit;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.request.AddProductRequest;
+import pl.srozga.gluqalc_api.dto.request.AddProductNameRequest;
 import pl.srozga.gluqalc_api.dto.request.ImportProductRequest;
 import pl.srozga.gluqalc_api.dto.request.ProductPortionRequest;
 import pl.srozga.gluqalc_api.dto.request.UpdateProductRequest;
 import pl.srozga.gluqalc_api.dto.response.PortionChangeResponse;
 import pl.srozga.gluqalc_api.dto.response.ProductAdminResponse;
 import pl.srozga.gluqalc_api.dto.response.ProductChangeResponse;
+import pl.srozga.gluqalc_api.dto.response.ProductNameResponse;
 import pl.srozga.gluqalc_api.dto.response.ProductResponse;
 import pl.srozga.gluqalc_api.entity.UserProfile;
 import pl.srozga.gluqalc_api.repository.UserProfileRepository;
@@ -166,6 +168,37 @@ public class ProductController {
             productService.proposeProductChange(id, user.id(), request);
             return ResponseEntity.accepted().build();
         }
+    }
+
+    @Operation(summary = "Add a product name", description = "Adds a translated or alternative name. User submissions require administrator approval.")
+    @PostMapping("/products/{id}/names")
+    @PreAuthorize("isAuthenticated()")
+    public ProductNameResponse addProductName(
+            @PathVariable UUID id,
+            @Valid @RequestBody AddProductNameRequest request,
+            @AuthenticationPrincipal AuthUser user
+    ) {
+        return productService.addProductName(id, request, user);
+    }
+
+    @Operation(summary = "Approve a product name (Admin)", description = "Approves a user-submitted product name.")
+    @PostMapping("/admin/products/names/{nameId}/accept")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.OK)
+    public void approveProductName(@PathVariable UUID nameId) {
+        productService.approveProductName(nameId);
+    }
+
+    @Operation(summary = "Delete a product name", description = "Deletes an administrator name or the current user's pending submission.")
+    @DeleteMapping("/products/{id}/names/{nameId}")
+    @PreAuthorize("isAuthenticated()")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteProductName(
+            @PathVariable UUID id,
+            @PathVariable UUID nameId,
+            @AuthenticationPrincipal AuthUser user
+    ) {
+        productService.deleteProductName(id, nameId, user);
     }
 
     @Operation(summary = "Approve a whole product (Admin)", description = "Publishes a previously proposed product, making it visible to all users.")
