@@ -34,6 +34,10 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
         SELECT p FROM Product p
         WHERE (LOWER(p.name) LIKE LOWER(CONCAT('%', :#{escape(#query)}, '%')) ESCAPE '\\'
            OR LOWER(p.brand) LIKE LOWER(CONCAT('%', :#{escape(#query)}, '%')) ESCAPE '\\'
+              OR EXISTS (SELECT n.id FROM ProductName n
+                             WHERE n.product = p
+                             AND n.approved = true
+                             AND LOWER(n.name) LIKE LOWER(CONCAT('%', :#{escape(#query)}, '%')) ESCAPE '\\')
            OR p.barcode = :query)
         AND p.deleted = false
         AND (p.published = true OR p.createdBy = :userId)

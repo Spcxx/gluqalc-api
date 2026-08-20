@@ -9,6 +9,7 @@ import pl.srozga.gluqalc_api.component.nutrition.NutritionMapper;
 import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductNutritionDto;
+import pl.srozga.gluqalc_api.dto.internal.ProductNameDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductPortionDto;
 import pl.srozga.gluqalc_api.dto.response.*;
 import pl.srozga.gluqalc_api.entity.Product;
@@ -42,6 +43,12 @@ public class ProductMapper {
                                 portion.getCreatedBy()
                         ))
                         .toList(),
+                    product.getNames().stream()
+                        .map(name -> new ProductNameDto(
+                            name.getId(), name.getName(), name.getLanguageCode(),
+                            name.getType(), name.getSource(), true
+                        ))
+                        .toList(),
 
                 product.isPublished(),
                 product.getCreatedBy(),
@@ -61,6 +68,7 @@ public class ProductMapper {
                 product.barcode(),
                 mapResponseNutrition(product.nutrition()),
                 mapPortions(portions, null, LocalTime.now()),
+                mapNames(product.names(), true),
                 product.published(),
                 product.createdAt(),
                 product.updatedAt(),
@@ -82,6 +90,7 @@ public class ProductMapper {
                 mapResponseNutrition(product.nutrition()),
                 baseInsulinDose,
                 mapPortions(portions, profile, now),
+                mapNames(product.names(), false),
                 product.source()
         );
     }
@@ -129,6 +138,16 @@ public class ProductMapper {
                 })
                 .toList();
     }
+
+        private List<ProductNameResponse> mapNames(List<ProductNameDto> names, boolean includePending) {
+        return names.stream()
+                    .filter(name -> includePending || name.approved())
+            .map(name -> new ProductNameResponse(
+                name.id(), name.name(), name.languageCode(),
+                name.type(), name.source(), name.approved()
+            ))
+            .toList();
+        }
 
     private InsulinDoseResponse calculateInsulin(ProductNutritionDto nutrition, UserProfile profile, LocalTime time) {
         if (nutrition == null || profile == null)
