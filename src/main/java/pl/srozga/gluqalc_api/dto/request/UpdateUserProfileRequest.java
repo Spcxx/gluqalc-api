@@ -3,6 +3,7 @@ package pl.srozga.gluqalc_api.dto.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
+import pl.srozga.gluqalc_api.common.CombinedInsulinCalculationMethod;
 import pl.srozga.gluqalc_api.common.InsulinDeliveryMethod;
 import pl.srozga.gluqalc_api.common.MacroType;
 import pl.srozga.gluqalc_api.common.UserGender;
@@ -61,6 +62,8 @@ public record UpdateUserProfileRequest(
         BigDecimal insulinFatProteinRatio,
         @Schema(description = "Preferred insulin delivery method", example = "PEN")
         InsulinDeliveryMethod insulinDeliveryMethod,
+        @Schema(description = "Method used to calculate the combined insulin dose for protein and fat", example = "SIERADZKI")
+        CombinedInsulinCalculationMethod combinedInsulinCalculationMethod,
         @Schema(description = "Insulin to Carbohydrate Ratio (ICR) mapped by hour of the day (0-23)", example = "{\"8\": 1.2, \"14\": 1.0, \"20\": 1.5}")
         @ValidHourlyMap
         Map<@Min(0) @Max(23) Integer, @Positive BigDecimal> hourlyCarbRatio

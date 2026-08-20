@@ -58,6 +58,7 @@ public class UserProfileService {
         profile.setInsulinSensitivityFactor(request.insulinSensitivityFactor());
         profile.setInsulinFatProteinRatio(request.insulinFatProteinRatio());
         profile.setInsulinDeliveryMethod(request.insulinDeliveryMethod());
+        profile.setCombinedInsulinCalculationMethod(request.combinedInsulinCalculationMethod());
 
         if (request.hourlyCarbRatio() != null) {
             try {
@@ -155,6 +156,7 @@ public class UserProfileService {
                 p.getInsulinSensitivityFactor(),
                 p.getInsulinFatProteinRatio(),
                 p.getInsulinDeliveryMethod(),
+                p.getCombinedInsulinCalculationMethod(),
                 icrMap,
                 targets
         );
