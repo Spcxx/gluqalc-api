@@ -115,6 +115,7 @@ public class OpenFoodFactsProvider implements ProductProvider {
                 barcode,
                 nutrition,
                 List.of(defaultPortion),
+                List.of(),
                 false,
                 null,
                 null,

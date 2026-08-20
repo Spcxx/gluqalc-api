@@ -20,6 +20,8 @@ public record ProductAdminResponse(
         ProductNutritionResponse nutrition,
         @Schema(description = "List of all defined portions for this product")
         List<ProductPortionResponse> portions,
+        @Schema(description = "Translated and alternative product names")
+        List<ProductNameResponse> names,
         @Schema(description = "Publishing status; true if visible to all users", example = "true")
         boolean published,
         @Schema(description = "Timestamp of product creation (UTC)", example = "2026-03-15T10:15:30Z")

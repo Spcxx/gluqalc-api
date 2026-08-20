@@ -14,6 +14,7 @@ public record ProductDto(
         String barcode,
         ProductNutritionDto nutrition,
         List<ProductPortionDto> portions,
+        List<ProductNameDto> names,
         boolean published,
         UUID createdBy,
         Instant createdAt,

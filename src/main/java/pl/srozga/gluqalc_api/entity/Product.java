@@ -66,6 +66,11 @@ public class Product {
     @ToString.Exclude
     private Set<ProductPortion> portions = new HashSet<>();
 
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    @ToString.Exclude
+    private Set<ProductName> names = new HashSet<>();
+
     @Column(nullable = false)
     @Builder.Default
     private boolean published = false;

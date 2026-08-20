@@ -21,6 +21,8 @@ public record ProductResponse(
         InsulinDoseResponse insulinDose,
         @Schema(description = "List of predefined portions for easier logging")
         List<ProductPortionResponse> portions,
+        @Schema(description = "Approved translated and alternative product names")
+        List<ProductNameResponse> names,
         @Schema(description = "Indicates if the product is from the local database or an external provider", example = "LOCAL")
         ProductProviderType provider
 ) {
