@@ -512,13 +512,22 @@ public class ProductService {
         }
     }
 
-    @Cacheable(value = "local_search_cache", key = "#query.toLowerCase() + '_' + #userId")
+    @Cacheable(value = "local_search_cache", key = "'v2_' + #query.trim().toLowerCase() + '_' + #userId")
     @Transactional(readOnly = true)
     public List<ProductDto> findLocalProductsDto(String query, UUID userId) {
-        return productRepository.searchProducts(query, userId)
+        String normalizedQuery = query.trim().toLowerCase(Locale.ROOT);
+        return productRepository.searchProducts(normalizedQuery, userId, maxSearchDistance(normalizedQuery))
                 .stream()
                 .map(productMapper::toDto)
                 .collect(Collectors.toList()); // Użyj collect, żeby dociągnąć relacje wewnątrz transakcji
+    }
+
+    private int maxSearchDistance(String query) {
+        if (query.length() <= 4)
+            return 1;
+        if (query.length() <= 8)
+            return 3;
+        return 3;
     }
 
     private Product createProductInternal(AddProductRequest productRequest, boolean isPublished, UUID creatorId) {
