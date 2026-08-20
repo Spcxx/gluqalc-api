@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 @Component
 public class ProductMerger {
-    public ProductDto merge(Product base, ProductChange change, List<ProductPortion> allVisiblePortions, List<PortionChange> portionChanges) {
+        public ProductDto merge(Product base, ProductChange change, List<ProductPortion> allVisiblePortions, List<PortionChange> portionChanges, boolean includePendingNames) {
         boolean hasChange = (change != null);
 
         String effectiveName = (hasChange && change.getName() != null) ? change.getName() : base.getName();
@@ -77,6 +77,13 @@ public class ProductMerger {
                 effectiveBarcode,
                 nutrition,
                 effectivePortions,
+                base.getNames().stream()
+                        .filter(name -> includePendingNames || name.isApproved())
+                        .map(name -> new pl.srozga.gluqalc_api.dto.internal.ProductNameDto(
+                                name.getId(), name.getName(), name.getLanguageCode(),
+                                name.getType(), name.getSource(), true
+                        ))
+                        .toList(),
                 base.isPublished(),
                 base.getCreatedBy(),
                 base.getCreatedAt(),

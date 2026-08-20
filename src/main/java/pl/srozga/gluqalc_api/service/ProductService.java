@@ -10,10 +10,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.srozga.gluqalc_api.common.UserRole;
+import pl.srozga.gluqalc_api.common.ProductNameSource;
+import pl.srozga.gluqalc_api.common.ProductNameType;
 import pl.srozga.gluqalc_api.component.product.ProductMapper;
 import pl.srozga.gluqalc_api.component.product.ProductMerger;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.request.AddProductRequest;
+import pl.srozga.gluqalc_api.dto.request.AddProductNameRequest;
 import pl.srozga.gluqalc_api.dto.request.UpdateProductRequest;
 import pl.srozga.gluqalc_api.dto.response.*;
 import pl.srozga.gluqalc_api.entity.*;
@@ -36,6 +39,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ProductService {
     private final ProductRepository productRepository;
+    private final ProductNameRepository productNameRepository;
     private final ProductPortionRepository productPortionRepository;
     private final ProductChangeRepository productChangeRepository;
     private final PortionChangeRepository portionChangeRepository;
@@ -68,7 +72,7 @@ public class ProductService {
             product = productRepository.findByIdVisibleToUser(productId, user.id())
                 .orElseThrow(() -> new NotFoundException("Product not found"));
 
-        return assembleSmartProduct(product, user.id());
+        return assembleSmartProduct(product, user.id(), user.roles().contains(UserRole.ADMIN));
     }
 
     @Transactional(readOnly = true)
@@ -81,7 +85,7 @@ public class ProductService {
             product = productRepository.findByBarcodeVisibleToUser(barcode, user.id())
                     .orElseThrow(() -> new NotFoundException("Product not found"));
 
-        return assembleSmartProduct(product, user.id());
+        return assembleSmartProduct(product, user.id(), user.roles().contains(UserRole.ADMIN));
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +100,73 @@ public class ProductService {
         Product product = productRepository.findByBarcodeAndDeletedFalse(barcode)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
         return productMapper.toDto(product);
+    }
+
+    @Transactional
+    public ProductNameResponse addProductName(UUID productId, AddProductNameRequest request, AuthUser user) {
+        Product product = user.roles().contains(UserRole.ADMIN)
+            ? productRepository.findByIdAndDeletedFalse(productId)
+            .orElseThrow(() -> new NotFoundException("Product not found"))
+            : productRepository.findByIdVisibleToUser(productId, user.id())
+            .orElseThrow(() -> new NotFoundException("Product not found"));
+        String normalizedName = request.name().trim();
+        String normalizedLanguage = request.languageCode().trim().toLowerCase(Locale.ROOT);
+
+        boolean duplicate = product.getNames().stream().anyMatch(name ->
+                name.getName().equalsIgnoreCase(normalizedName)
+                        && name.getLanguageCode().equalsIgnoreCase(normalizedLanguage));
+        if (product.getName().equalsIgnoreCase(normalizedName))
+            duplicate = true;
+        if (duplicate)
+            throw new ConflictException("This product name already exists");
+
+        boolean approved = user.roles().contains(UserRole.ADMIN);
+        ProductName productName = ProductName.builder()
+                .product(product)
+                .name(normalizedName)
+                .languageCode(normalizedLanguage)
+                .type(request.type() != null ? request.type() : ProductNameType.ALIAS)
+                .source(approved ? ProductNameSource.ADMIN : ProductNameSource.USER)
+                .approved(approved)
+                .createdBy(user.id())
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+        product.getNames().add(productName);
+        productRepository.save(product);
+        return toProductNameResponse(productName);
+    }
+
+    @Transactional
+    public void approveProductName(UUID nameId) {
+        ProductName productName = productNameForId(nameId);
+        productName.setApproved(true);
+        productName.setUpdatedAt(Instant.now());
+    }
+
+    @Transactional
+    public void deleteProductName(UUID productId, UUID nameId, AuthUser user) {
+        Product product = user.roles().contains(UserRole.ADMIN)
+                ? productRepository.findByIdAndDeletedFalse(productId).orElseThrow(() -> new NotFoundException("Product not found"))
+                : productRepository.findByIdVisibleToUser(productId, user.id()).orElseThrow(() -> new NotFoundException("Product not found"));
+        ProductName productName = product.getNames().stream()
+                .filter(name -> name.getId().equals(nameId))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("Product name not found"));
+        if (!user.roles().contains(UserRole.ADMIN)
+                && (!productName.getCreatedBy().equals(user.id()) || productName.isApproved()))
+            throw new ConflictException("Only your pending product names can be deleted");
+        product.getNames().remove(productName);
+        productRepository.save(product);
+    }
+
+    private ProductName productNameForId(UUID nameId) {
+        return productNameRepository.findById(nameId)
+                .orElseThrow(() -> new NotFoundException("Product name not found"));
+    }
+
+    private ProductNameResponse toProductNameResponse(ProductName name) {
+        return new ProductNameResponse(name.getId(), name.getName(), name.getLanguageCode(), name.getType(), name.getSource(), name.isApproved());
     }
 
     @Transactional
@@ -511,11 +582,11 @@ public class ProductService {
         }
     }
 
-    private ProductDto assembleSmartProduct(Product product, UUID userId) {
+    private ProductDto assembleSmartProduct(Product product, UUID userId, boolean includePendingNames) {
         ProductChange change = productChangeRepository.findByProductIdAndUserIdAndDeletedFalse(product.getId(), userId)
                 .orElse(null);
         List<ProductPortion> allVisiblePortions = productPortionRepository.findAllVisibleForUser(product.getId(), userId);
         List<PortionChange> portionChanges = portionChangeRepository.findAllActiveByUserIdAndProduct(userId, product.getId());
-        return productMerger.merge(product, change, allVisiblePortions, portionChanges);
+        return productMerger.merge(product, change, allVisiblePortions, portionChanges, includePendingNames);
     }
 }
