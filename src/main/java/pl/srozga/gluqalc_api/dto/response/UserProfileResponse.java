@@ -2,6 +2,7 @@ package pl.srozga.gluqalc_api.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import pl.srozga.gluqalc_api.common.BmrCalculationMethod;
+import pl.srozga.gluqalc_api.common.CombinedInsulinCalculationMethod;
 import pl.srozga.gluqalc_api.common.InsulinDeliveryMethod;
 import pl.srozga.gluqalc_api.common.MacroType;
 import pl.srozga.gluqalc_api.common.UserGender;
@@ -40,6 +41,8 @@ public record UserProfileResponse(
         BigDecimal insulinFatProteinRatio,
         @Schema(description = "Insulin delivery method selected by the user", example = "PUMP")
         InsulinDeliveryMethod insulinDeliveryMethod,
+        @Schema(description = "Method used to calculate the combined insulin dose for protein and fat", example = "PANKOWSKA")
+        CombinedInsulinCalculationMethod combinedInsulinCalculationMethod,
         @Schema(description = "Insulin to Carbohydrate Ratio (ICR) by hour of the day", example = "{\"8\": 1.1, \"14\": 0.9}")
         Map<Integer, BigDecimal> hourlyCarbRatio,
         @Schema(description = "Aggregated metabolic and nutritional targets calculated based on the profile data")
