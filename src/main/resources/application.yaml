@@ -27,6 +27,9 @@ app:
 spring:
   application:
     name: GluQalc API
+  devtools:
+    restart:
+      enabled: false
   jackson:
     time-zone: UTC
     locale: en_US
