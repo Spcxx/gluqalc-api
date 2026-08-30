@@ -21,7 +21,7 @@ app:
     client-id: ${GOOGLE_CLIENT_ID}
   rate-limiter:
     max-requests: 100
-    time-window: 60
+    time-window: 15
   session:
     max-devices: 5
 spring:
