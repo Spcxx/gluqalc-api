@@ -3,6 +3,7 @@ package pl.srozga.gluqalc_api.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -49,6 +50,7 @@ public class ProductService {
     private final ObjectProvider<ProductService> selfProvider;
 
     @Transactional
+    @CacheEvict(value = "local_search_cache", allEntries = true)
     public ProductDto createProduct(UUID adminId, AddProductRequest productRequest) {
         Product savedProduct = createProductInternal(productRequest, true, adminId);
         log.info("Created new published product: {} by admin {}", savedProduct.getId(), adminId);
@@ -56,6 +58,7 @@ public class ProductService {
     }
 
     @Transactional
+    @CacheEvict(value = "local_search_cache", allEntries = true)
     public ProductDto proposeProduct(UUID authorId, AddProductRequest productRequest) {
         Product savedProduct = createProductInternal(productRequest, false, authorId);
         log.info("Created new proposed product: {} by user {}", savedProduct.getId(), authorId);
@@ -86,6 +89,13 @@ public class ProductService {
                     .orElseThrow(() -> new NotFoundException("Product not found"));
 
         return assembleSmartProduct(product, user.id(), user.roles().contains(UserRole.ADMIN));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductDto> getMyProducts(UUID userId) {
+        return productRepository.findAllOwnedByUser(userId).stream()
+                .map(product -> assembleSmartProduct(product, userId, false))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -170,6 +180,7 @@ public class ProductService {
     }
 
     @Transactional
+    @CacheEvict(value = "local_search_cache", allEntries = true)
     public ProductDto updateProduct(UUID id, UpdateProductRequest request) {
         Product product = productRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
@@ -204,6 +215,7 @@ public class ProductService {
     }
 
     @Transactional
+    @CacheEvict(value = "local_search_cache", allEntries = true)
     public void proposeProductChange(UUID productId, UUID userId, UpdateProductRequest request) {
         Product product = productRepository.findByIdVisibleToUser(productId, userId)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
@@ -256,6 +268,7 @@ public class ProductService {
     }
 
     @Transactional
+    @CacheEvict(value = "local_search_cache", allEntries = true)
     public void softDeleteProduct(UUID id) {
         Product product = productRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
@@ -478,11 +491,31 @@ public class ProductService {
         return new PageImpl<>(pageContent, pageable, results.size());
     }
 
+    @Transactional
+    @CacheEvict(value = "local_search_cache", allEntries = true)
     public ProductDto importProduct(String barcode, AuthUser user) {
         ProductService self = selfProvider.getObject();
-        Optional<Product> existing = productRepository.findByBarcodeAndDeletedFalse(barcode);
-        if (existing.isPresent())
-            return self.getProductSmart(existing.get().getId(), user);
+
+        Optional<Product> existingAny = productRepository.findByBarcode(barcode);
+        if (existingAny.isPresent()) {
+            Product product = existingAny.get();
+            boolean changed = false;
+
+            if (product.isDeleted()) {
+                product.setDeleted(false);
+                changed = true;
+            }
+
+            if (!product.isPublished()) {
+                product.setPublished(true);
+                changed = true;
+            }
+
+            if (changed) {
+                productRepository.save(product);
+            }
+            return self.getProductSmart(product.getId(), user);
+        }
 
         ProductDto offDto = productProvider.getProductByBarcode(barcode)
                 .orElseThrow(() -> new NotFoundException("Product not found in external provider"));
@@ -503,13 +536,11 @@ public class ProductService {
                 null
         );
 
-        if (user.roles().contains(UserRole.ADMIN)) {
-            log.info("Admin {} is importing product with barcode {} from external provider", user.id(), barcode);
-            return self.createProduct(user.id(), request);
-        } else {
-            log.info("User {} is proposing product with barcode {} from external provider", user.id(), barcode);
-            return self.proposeProduct(user.id(), request);
-        }
+        Product savedProduct = createProductInternal(request, true, user.id());
+
+        log.info("User {} imported and published product with barcode {} from external provider (OFF)", user.id(), barcode);
+
+        return productMapper.toDto(savedProduct);
     }
 
     @Cacheable(value = "local_search_cache", key = "'v2_' + #query.trim().toLowerCase() + '_' + #userId")
@@ -518,8 +549,8 @@ public class ProductService {
         String normalizedQuery = query.trim().toLowerCase(Locale.ROOT);
         return productRepository.searchProducts(normalizedQuery, userId, maxSearchDistance(normalizedQuery))
                 .stream()
-                .map(productMapper::toDto)
-                .collect(Collectors.toList()); // Użyj collect, żeby dociągnąć relacje wewnątrz transakcji
+                .map(product -> assembleSmartProduct(product, userId, false))
+                .collect(Collectors.toList());
     }
 
     private int maxSearchDistance(String query) {

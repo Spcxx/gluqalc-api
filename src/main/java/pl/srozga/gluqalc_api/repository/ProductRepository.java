@@ -30,6 +30,20 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
         AND (p.published = true OR p.createdBy = :userId)
     """)
     Optional<Product> findByBarcodeVisibleToUser(String barcode, UUID userId);
+    @Query("""
+        SELECT DISTINCT p FROM Product p
+        WHERE p.deleted = false
+        AND (
+            p.createdBy = :userId
+            OR EXISTS (
+                SELECT 1 FROM ProductChange pc
+                WHERE pc.productId = p.id
+                AND pc.userId = :userId
+                AND pc.deleted = false
+            )
+        )
+    """)
+    List<Product> findAllOwnedByUser(UUID userId);
     @Query(value = """
         SELECT p.*
         FROM products p
@@ -81,4 +95,6 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             @Param("userId") UUID userId,
             @Param("maxDistance") int maxDistance
     );
+
+    Optional<Product> findByBarcode(String barcode);
 }

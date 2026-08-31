@@ -401,4 +401,21 @@ public class ProductController {
             return ResponseEntity.ok(productMapper.toResponse(productDto, profile));
         }
     }
+
+    @Operation(summary = "Get my products", description = "Returns products created by the user or edited by the user (with their local pending changes merged).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved user-owned products"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @GetMapping("/users/me/products")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ProductResponse>> getMyProducts(
+            @AuthenticationPrincipal AuthUser user
+    ) {
+        UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+        List<ProductResponse> responses = productService.getMyProducts(user.id()).stream()
+                .map(product -> productMapper.toResponse(product, profile))
+                .toList();
+        return ResponseEntity.ok(responses);
+    }
 }
