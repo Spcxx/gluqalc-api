@@ -139,7 +139,7 @@ public class EmailService {
 
             mailSender.send(mimeMessage);
             log.info("Sent email [{}] to {}", subject, to);
-        } catch (MessagingException e) {
+        } catch (Exception e) {
             log.error("Failed to send email [{}] to {}: {}", subject, to, e.getMessage());
         }
     }
