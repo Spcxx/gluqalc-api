@@ -25,6 +25,7 @@ import pl.srozga.gluqalc_api.security.jwt.RefreshTokenService;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -150,11 +151,14 @@ public class UserService {
 
     @Transactional
     public void initiatePasswordReset(String email) {
-        User user = userRepository.findByEmailAndDeletedFalse(email)
-                .orElseThrow(() -> new NotFoundException("User not found"));
-        if (!user.getProviders().contains(AuthProvider.LOCAL)) {
-            throw new ConflictException("Password reset is not available for users registered via external providers");
+        Optional<User> optionalUser = userRepository.findByEmailAndDeletedFalse(email);
+        if (optionalUser.isEmpty()) {
+            return;
         }
+
+        User user = optionalUser.get();
+        if (!user.getProviders().contains(AuthProvider.LOCAL))
+            return;
 
         String token = verificationTokenService.createPasswordResetToken(user.getId());
         emailService.sendPasswordResetEmail(user.getEmail(), token);
@@ -174,6 +178,11 @@ public class UserService {
         userRepository.save(user);
         refreshTokenService.deleteAllUserSessions(user.getId());
         verificationTokenService.deletePasswordResetToken(request.code());
+
+        emailService.sendSecurityAlertEmail(
+                user.getEmail(),
+                "The password for your GluQalc account has been changed."
+        );
 
         log.info("Password successfully reset for user: {}", user.getEmail());
     }
@@ -263,7 +272,7 @@ public class UserService {
 
         emailService.sendSecurityAlertEmail(
                 oldEmail,
-                "The email address associated with your Gluqalc account has been changed to: <strong>" + tokenNewEmail + "</strong>."
+                "The email address associated with your Gluqalc account has been changed to: " + tokenNewEmail + "."
         );
 
         log.info("Confirmed email change for verified user {} from {} to {}", user.getId(), oldEmail, tokenNewEmail);

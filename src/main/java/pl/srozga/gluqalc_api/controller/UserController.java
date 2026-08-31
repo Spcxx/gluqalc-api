@@ -179,11 +179,9 @@ public class UserController {
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Password reset initiated (or email ignored if not found to prevent user enumeration)"),
             @ApiResponse(responseCode = "400", description = "Validation error"),
-            @ApiResponse(responseCode = "404", description = "Not found"),
-            @ApiResponse(responseCode = "409", description = "Conflict: Password reset is not available for users registered via external providers"),
             @ApiResponse(responseCode = "429", description = "Too many requests")
     })
-    @RateLimit(maxRequests = 3, timeWindowSeconds = 300)
+    @RateLimit(maxRequests = 3, timeWindowSeconds = 60)
     @PostMapping("/reset-password/request")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void requestPasswordReset(@Valid @RequestBody PasswordResetRequest passwordResetRequest) {
