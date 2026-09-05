@@ -23,6 +23,9 @@ public record ProductResponse(
         List<ProductPortionResponse> portions,
         @Schema(description = "Approved translated and alternative product names")
         List<ProductNameResponse> names,
+        @Schema(description = "Source attribution metadata for external product data")
+        @com.fasterxml.jackson.annotation.JsonProperty("_metadata")
+        ProductMetadataResponse metadata,
         @Schema(description = "Indicates if the product is from the local database or an external provider", example = "LOCAL")
         ProductProviderType provider
 ) {

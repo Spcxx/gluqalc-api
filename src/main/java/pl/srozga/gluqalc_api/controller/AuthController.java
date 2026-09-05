@@ -56,8 +56,8 @@ public class AuthController {
     @PostMapping("/register")
     @RateLimit(maxRequests = 10, timeWindowSeconds = 300)
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse register(@Valid @RequestBody RegisterRequest registerRequest) {
-        return userService.createUser(registerRequest);
+    public UserResponse register(@Valid @RequestBody RegisterRequest registerRequest, HttpServletRequest request) {
+        return userService.createUser(registerRequest, IpResolver.getClientIp(request));
     }
 
     @Operation(summary = "Refresh token", description = "Generates a new pair of tokens based on a valid Refresh Token.")

@@ -9,6 +9,7 @@ import java.util.UUID;
 
 @Repository
 public interface ConsentDefinitionRepository extends JpaRepository<ConsentDefinition, UUID> {
+    List<ConsentDefinition> findAllByActiveTrue();
     List<ConsentDefinition> findAllByActiveTrueAndRequiredTrue();
     List<ConsentDefinition> findAllByIdInAndActiveTrue(List<UUID> ids);
 }

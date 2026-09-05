@@ -3,6 +3,7 @@ package pl.srozga.gluqalc_api.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -28,6 +29,16 @@ import java.util.List;
 public class ConsentController {
     private final ConsentService consentService;
     private final AuthService authService;
+
+    @Operation(summary = "Get all active consents", description = "Retrieves the publicly available consent definitions for display in the registration and consent flow.")
+    @SecurityRequirements()
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved active consent definitions")
+    })
+    @GetMapping
+    public List<ConsentResponse> getAllConsents() {
+        return consentService.getAllActiveConsents();
+    }
 
     @Operation(summary = "Get pending consents", description = "Retrieves a list of active and required consents that the user has not yet accepted.")
     @ApiResponses({
