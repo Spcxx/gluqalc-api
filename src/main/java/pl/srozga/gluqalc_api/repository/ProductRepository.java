@@ -1,6 +1,8 @@
 package pl.srozga.gluqalc_api.repository;
 
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -95,6 +97,16 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             @Param("userId") UUID userId,
             @Param("maxDistance") int maxDistance
     );
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Product p WHERE p.createdBy = :userId AND p.published = false")
+    void deleteUnpublishedByUserId(@Param("userId") UUID userId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Product p SET p.createdBy = NULL WHERE p.createdBy = :userId AND p.published = true")
+    void anonymizePublishedByUserId(@Param("userId") UUID userId);
 
     Optional<Product> findByBarcode(String barcode);
 }

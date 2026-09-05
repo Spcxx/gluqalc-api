@@ -11,6 +11,7 @@ import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductNutritionDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductNameDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductPortionDto;
+import pl.srozga.gluqalc_api.dto.internal.ProductSourceMetadataDto;
 import pl.srozga.gluqalc_api.dto.response.*;
 import pl.srozga.gluqalc_api.entity.Product;
 import pl.srozga.gluqalc_api.entity.UserProfile;
@@ -54,6 +55,7 @@ public class ProductMapper {
                 product.getCreatedBy(),
                 product.getCreatedAt(),
                 product.getUpdatedAt(),
+                null,
                 ProductProviderType.LOCAL
         );
     }
@@ -72,7 +74,8 @@ public class ProductMapper {
                 product.published(),
                 product.createdAt(),
                 product.updatedAt(),
-                product.source()
+                product.source(),
+                mapMetadata(product.metadata())
         );
     }
 
@@ -91,6 +94,7 @@ public class ProductMapper {
                 baseInsulinDose,
                 mapPortions(portions, profile, now),
                 mapNames(product.names(), false),
+                mapMetadata(product.metadata()),
                 product.source()
         );
     }
@@ -106,6 +110,17 @@ public class ProductMapper {
                 product.getFiber(),
                 product.getSalt(),
                 product.getGlycemicIndex()
+        );
+    }
+
+    private ProductMetadataResponse mapMetadata(ProductSourceMetadataDto dto) {
+        if (dto == null) return null;
+        return new ProductMetadataResponse(
+                dto.source(),
+                dto.license(),
+                dto.licenseUrl(),
+                dto.sourceUrl(),
+                dto.disclaimer()
         );
     }
 

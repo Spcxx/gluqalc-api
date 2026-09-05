@@ -9,6 +9,7 @@ import pl.srozga.gluqalc_api.common.ProductProviderType;
 import pl.srozga.gluqalc_api.dto.internal.ProductDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductNutritionDto;
 import pl.srozga.gluqalc_api.dto.internal.ProductPortionDto;
+import pl.srozga.gluqalc_api.dto.internal.ProductSourceMetadataDto;
 import pl.srozga.gluqalc_api.integration.ProductProvider;
 import pl.srozga.gluqalc_api.integration.off.dto.OffProduct;
 import pl.srozga.gluqalc_api.integration.off.dto.OffResponse;
@@ -120,6 +121,13 @@ public class OpenFoodFactsProvider implements ProductProvider {
                 null,
                 null,
                 null,
+                new ProductSourceMetadataDto(
+                        "OPEN_FOOD_FACTS",
+                        "Open Database License (ODbL) v1.0",
+                        "https://opendatacommons.org/licenses/odbl/1-0/",
+                        "https://world.openfoodfacts.org/product/" + barcode,
+                        "Nutritional data sourced from the Open Food Facts collaborative database under the Open Database License (ODbL)."
+                ),
                 PROVIDER
         );
     }

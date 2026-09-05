@@ -56,7 +56,7 @@ public class UserController {
         return userService.getUserById(id);
     }
 
-    @Operation(summary = "Delete user (Admin)", description = "Soft-deletes a user account and revokes all of their active sessions.")
+    @Operation(summary = "Delete user (Admin)", description = "Permanently deletes a user account and all associated personal data from the database.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "User successfully deleted"),
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
@@ -67,7 +67,7 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable UUID id) {
-        userService.softDeleteUser(id);
+        userService.hardDeleteUser(id);
     }
 
     @Operation(summary = "Get user roles (Admin)", description = "Retrieves all assigned roles for a specific user.")

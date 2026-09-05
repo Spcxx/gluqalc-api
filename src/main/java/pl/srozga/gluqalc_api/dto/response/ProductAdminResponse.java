@@ -29,6 +29,9 @@ public record ProductAdminResponse(
         @Schema(description = "Timestamp of the last update (UTC)", example = "2026-03-15T12:00:00Z")
         Instant updatedAt,
         @Schema(description = "The source of the product data", example = "LOCAL")
-        ProductProviderType provider
+        ProductProviderType provider,
+        @Schema(description = "Source attribution metadata for external product data")
+        @com.fasterxml.jackson.annotation.JsonProperty("_metadata")
+        ProductMetadataResponse metadata
 ) {
 }
