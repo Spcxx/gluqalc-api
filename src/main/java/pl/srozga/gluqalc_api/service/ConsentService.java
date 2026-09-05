@@ -15,7 +15,9 @@ import pl.srozga.gluqalc_api.repository.ConsentDefinitionRepository;
 import pl.srozga.gluqalc_api.repository.UserConsentRepository;
 import pl.srozga.gluqalc_api.repository.UserRepository;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -37,6 +39,13 @@ public class ConsentService {
         Set<UUID> acceptedDefinitionIds = userConsentRepository.findAcceptedDefinitionIdsByUserId(userId);
 
         return requiredConsents.stream().anyMatch(req -> !acceptedDefinitionIds.contains(req.getId()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ConsentResponse> getAllActiveConsents() {
+        return definitionRepository.findAllByActiveTrue().stream()
+                .map(def -> new ConsentResponse(def.getId(), def.getCode(), def.getContent(), def.getVersion(), def.isRequired()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -77,5 +86,28 @@ public class ConsentService {
 
         userConsentRepository.saveAll(newConsents);
         log.info("User {} accepted {} new consents from IP {}", userId, newConsents.size(), ipAddress);
+    }
+
+    @Transactional(readOnly = true)
+    public void validateAllActiveConsentsAccepted(List<UUID> consentDefinitionIds) {
+        if (consentDefinitionIds == null)
+            throw new ConflictException("No consents provided for validation");
+
+        if (consentDefinitionIds.stream().anyMatch(Objects::isNull))
+            throw new ConflictException("Consent ID cannot be null");
+
+        Set<UUID> uniqueIds = new HashSet<>(consentDefinitionIds);
+        if (uniqueIds.size() != consentDefinitionIds.size())
+            throw new ConflictException("Duplicate consent IDs are not allowed");
+
+        List<ConsentDefinition> activeConsents = definitionRepository.findAllByActiveTrue();
+        if (activeConsents.isEmpty())
+            return;
+
+        Set<UUID> activeIds = activeConsents.stream().map(ConsentDefinition::getId).collect(Collectors.toSet());
+        if (!activeIds.containsAll(uniqueIds))
+            throw new ConflictException("Some of the provided consents are invalid or inactive");
+        if (!uniqueIds.containsAll(activeIds))
+            throw new ConflictException("You must provide all active consents");
     }
 }
