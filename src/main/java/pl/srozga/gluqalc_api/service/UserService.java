@@ -19,6 +19,9 @@ import pl.srozga.gluqalc_api.exception.ConflictException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
 import pl.srozga.gluqalc_api.exception.TokenAuthenticationException;
 import pl.srozga.gluqalc_api.repository.DeviceSessionRepository;
+import pl.srozga.gluqalc_api.repository.ProductNameRepository;
+import pl.srozga.gluqalc_api.repository.ProductPortionRepository;
+import pl.srozga.gluqalc_api.repository.ProductRepository;
 import pl.srozga.gluqalc_api.repository.UserRepository;
 import pl.srozga.gluqalc_api.security.jwt.JwtService;
 import pl.srozga.gluqalc_api.security.jwt.RefreshTokenService;
@@ -40,11 +43,17 @@ public class UserService {
     private final RefreshTokenService refreshTokenService;
     private final DeviceSessionRepository deviceSessionRepository;
     private final JwtService jwtService;
+    private final ConsentService consentService;
+    private final ProductNameRepository productNameRepository;
+    private final ProductPortionRepository productPortionRepository;
+    private final ProductRepository productRepository;
 
     @Transactional
-    public UserResponse createUser(RegisterRequest registerRequest) {
+    public UserResponse createUser(RegisterRequest registerRequest, String ipAddress) {
         if (userRepository.existsByEmail(registerRequest.email()))
             throw new ConflictException("User with this email already exists");
+
+        consentService.validateAllActiveConsentsAccepted(registerRequest.acceptedConsents());
 
         User user = User.builder()
                 .email(registerRequest.email())
@@ -58,6 +67,7 @@ public class UserService {
         log.info("Created new user: {}", user.getEmail());
 
         User addedUser = userRepository.save(user);
+        consentService.acceptConsents(addedUser.getId(), new AcceptConsentsRequest(registerRequest.acceptedConsents(), ""), ipAddress);
 
         String verificationToken = verificationTokenService.createVerificationToken(addedUser.getId());
         emailService.sendVerificationEmail(addedUser.getEmail(), verificationToken);
@@ -80,14 +90,27 @@ public class UserService {
     }
 
     @Transactional
-    public void softDeleteUser(UUID id) {
+    public void hardDeleteUser(UUID id) {
         User user = userRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        user.setDeleted(true);
-        userRepository.save(user);
+        deleteUserData(user.getId());
         refreshTokenService.deleteAllUserSessions(user.getId());
-        log.info("Soft deleted user: {}", id);
+        verificationTokenService.deleteVerificationTokenForUser(user.getId());
+        userRepository.delete(user);
+
+        log.info("Permanently deleted user: {}", id);
+    }
+
+    private void deleteUserData(UUID userId) {
+        productNameRepository.deleteUnapprovedByUserId(userId);
+        productNameRepository.anonymizeApprovedByUserId(userId);
+
+        productPortionRepository.deleteUnpublishedByUserId(userId);
+        productPortionRepository.anonymizePublishedByUserId(userId);
+
+        productRepository.deleteUnpublishedByUserId(userId);
+        productRepository.anonymizePublishedByUserId(userId);
     }
 
     @Transactional(readOnly = true)
@@ -300,11 +323,11 @@ public class UserService {
 
         String userEmail = user.getEmail();
 
-        user.setDeleted(true);
-        userRepository.save(user);
-
         verificationTokenService.deleteAccountDeletionToken(code);
+        deleteUserData(user.getId());
+        verificationTokenService.deleteVerificationTokenForUser(user.getId());
         refreshTokenService.deleteAllUserSessions(user.getId());
+        userRepository.delete(user);
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String jwt = authHeader.substring(7);

@@ -88,6 +88,7 @@ public class ProductMerger {
                 base.getCreatedBy(),
                 base.getCreatedAt(),
                 base.getUpdatedAt(),
+                null,
                 ProductProviderType.LOCAL
         );
     }

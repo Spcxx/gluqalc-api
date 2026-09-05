@@ -19,6 +19,7 @@ public record ProductDto(
         UUID createdBy,
         Instant createdAt,
         Instant updatedAt,
+        ProductSourceMetadataDto metadata,
         ProductProviderType source
 ) implements Serializable {
 }
