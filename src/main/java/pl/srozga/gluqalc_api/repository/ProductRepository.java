@@ -49,48 +49,48 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     @Query(value = """
         SELECT p.*
         FROM products p
-        WHERE (
-            LOWER(p.name) LIKE CONCAT('%', LOWER(:query), '%')
-            OR LOWER(COALESCE(p.brand, '')) LIKE CONCAT('%', LOWER(:query), '%')
-            OR EXISTS (
-                SELECT 1
-                FROM product_names matching_name
-                WHERE matching_name.product_id = p.id
-                  AND matching_name.approved = true
-                  AND LOWER(matching_name.name) LIKE CONCAT('%', LOWER(:query), '%')
-            )
-            OR p.barcode = :query
-            OR EXISTS (
-                SELECT 1
-                FROM regexp_split_to_table(
-                    regexp_replace(LOWER(p.name), '[^[:alnum:]]+', ' ', 'g'),
-                    '\\s+'
-                ) AS name_token
-                WHERE levenshtein_less_equal(name_token, LOWER(:query), :maxDistance) <= :maxDistance
-            )
-            OR EXISTS (
-                SELECT 1
-                FROM regexp_split_to_table(
-                    regexp_replace(LOWER(COALESCE(p.brand, '')), '[^[:alnum:]]+', ' ', 'g'),
-                    '\\s+'
-                ) AS brand_token
-                WHERE levenshtein_less_equal(brand_token, LOWER(:query), :maxDistance) <= :maxDistance
-            )
-            OR EXISTS (
-                SELECT 1
-                FROM product_names alias_name
-                WHERE alias_name.product_id = p.id
-                  AND alias_name.approved = true
-                  AND levenshtein_less_equal(LOWER(alias_name.name), LOWER(:query), :maxDistance) <= :maxDistance
-            )
-        )
-        AND p.deleted = false
-        AND (p.published = true OR p.created_by = :userId)
+        WHERE p.deleted = false
+          AND (p.published = true OR p.created_by = :userId)
+          AND (
+              -- 1. NAJSZYBSZE: Dokładne dopasowanie i zwykłe LIKE
+              p.barcode = :query
+              OR p.name ILIKE CONCAT('%', :query, '%')
+              OR p.brand ILIKE CONCAT('%', :query, '%')
+        
+              -- 2. SZYBKIE: LIKE w aliasach
+              OR EXISTS (
+                  SELECT 1
+                  FROM product_names alias_name
+                  WHERE alias_name.product_id = p.id
+                    AND alias_name.approved = true
+                    AND alias_name.name ILIKE CONCAT('%', :query, '%')
+              )
+        
+              -- 3. CIĘŻKIE (ale zoptymalizowane): Levenshtein dla nazwy i marki razem
+              OR EXISTS (
+                  SELECT 1
+                  FROM regexp_split_to_table(
+                      regexp_replace(LOWER(CONCAT_WS(' ', p.name, p.brand)), '[^[:alnum:]]+', ' ', 'g'),
+                      '\\s+'
+                  ) AS token
+                  WHERE NULLIF(token, '') IS NOT NULL -- eliminuje fałszywe dopasowania pustych znaków
+                    AND levenshtein_less_equal(token, LOWER(:query), :maxDistance) <= :maxDistance
+              )
+        
+              -- 4. CIĘŻKIE: Levenshtein w aliasach
+              OR EXISTS (
+                  SELECT 1
+                  FROM product_names alias_name
+                  WHERE alias_name.product_id = p.id
+                    AND alias_name.approved = true
+                    AND levenshtein_less_equal(LOWER(alias_name.name), LOWER(:query), :maxDistance) <= :maxDistance
+              )
+          )
         ORDER BY
             CASE WHEN p.barcode = :query THEN 0 ELSE 1 END,
-            CASE WHEN LOWER(p.name) = LOWER(:query) THEN 0 ELSE 1 END,
+            CASE WHEN p.name ILIKE :query THEN 0 ELSE 1 END,
             LENGTH(p.name) ASC,
-            p.name ASC
+            p.name ASC;
     """, nativeQuery = true)
     List<Product> searchProducts(
             @Param("query") String query,
