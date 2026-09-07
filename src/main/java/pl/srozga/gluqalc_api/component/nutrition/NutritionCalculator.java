@@ -79,7 +79,7 @@ public class NutritionCalculator {
                     throw new DomainValidationException("Age is required for Harris-Benedict BMR calculation");
 
                 if (p.getGender() == UserGender.MALE) {
-                    yield new BigDecimal(13.7516).multiply(p.getWeightInKg())
+                    yield new BigDecimal("13.7516").multiply(p.getWeightInKg())
                             .add(new BigDecimal("5.0033").multiply(p.getHeightInCm()))
                             .subtract(new BigDecimal("6.755").multiply(new BigDecimal(p.getAge())))
                             .add(new BigDecimal("66.473"));
@@ -118,13 +118,13 @@ public class NutritionCalculator {
             case OWEN -> {
                 if (p.getGender() == null)
                     throw new DomainValidationException("Gender is required for Owen BMR calculation");
-                if (p.getAge() == null)
-                    throw new DomainValidationException("Age is required for Owen BMR calculation");
+                if (p.getWeightInKg() == null)
+                    throw new DomainValidationException("Weight is required for Owen BMR calculation");
 
                 if (p.getGender() == UserGender.MALE) {
-                    yield new BigDecimal(10.2).multiply(new BigDecimal(p.getAge())).add(new BigDecimal("879"));
+                    yield new BigDecimal("10.2").multiply(p.getWeightInKg()).add(new BigDecimal("879"));
                 } else {
-                    yield new BigDecimal(7.18).multiply(new BigDecimal(p.getAge())).add(new BigDecimal("795"));
+                    yield new BigDecimal("7.18").multiply(p.getWeightInKg()).add(new BigDecimal("795"));
                 }
             }
         };
