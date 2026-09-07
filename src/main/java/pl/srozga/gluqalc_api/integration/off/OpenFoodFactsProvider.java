@@ -25,6 +25,12 @@ public class OpenFoodFactsProvider implements ProductProvider {
     private final RestClient restClient;
     public static final ProductProviderType PROVIDER = ProductProviderType.OFF;
 
+    private static final Set<String> TOTAL_CARBS_COUNTRIES = Set.of(
+            "en:united-states", "en:canada", "en:japan",
+            "en:south-korea", "en:republic-of-korea", "en:taiwan",
+            "en:singapore", "en:philippines", "en:hong-kong"
+    );
+
     @Override
     @Cacheable(value = "off_barcode_cache", key = "#barcode", unless = "#result == null")
     public Optional<ProductDto> getProductByBarcode(String barcode) {
@@ -93,14 +99,30 @@ public class OpenFoodFactsProvider implements ProductProvider {
         if (p.nutriments() == null)
             return null;
 
+        BigDecimal carbs = p.nutriments().carbohydrates();
+        BigDecimal fiber = p.nutriments().fiber();
+        BigDecimal sugars = p.nutriments().sugars() != null ? p.nutriments().sugars() : BigDecimal.ZERO;
+        if (carbs != null && fiber != null && p.countriesTags() != null) {
+            boolean isTotalCarbsCountry = p.countriesTags().stream()
+                                .filter(Objects::nonNull)
+                                .anyMatch(TOTAL_CARBS_COUNTRIES::contains);
+
+            if (isTotalCarbsCountry) {
+                BigDecimal carbsAfterSubtraction = carbs.subtract(fiber);
+                if (carbsAfterSubtraction.compareTo(sugars) >= 0) {
+                    carbs = carbsAfterSubtraction;
+                }
+            }
+        }
+
         ProductNutritionDto nutrition = new ProductNutritionDto(
                 p.nutriments().energyKcal(),
-                p.nutriments().carbohydrates(),
+                carbs,
                 p.nutriments().sugars(),
                 p.nutriments().fat(),
                 p.nutriments().saturatedFat(),
                 p.nutriments().protein(),
-                p.nutriments().fiber(),
+                fiber,
                 p.nutriments().salt(),
                 null
         );
