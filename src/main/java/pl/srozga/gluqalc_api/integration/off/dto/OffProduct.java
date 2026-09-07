@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record OffProduct(
         String _id,
@@ -12,7 +14,8 @@ public record OffProduct(
         @JsonProperty("product_name")
         String productName,
         String brands,
-        OffNutriments nutriments
-
+        OffNutriments nutriments,
+        @JsonProperty("countries_tags")
+        List<String> countriesTags
 ) {
 }

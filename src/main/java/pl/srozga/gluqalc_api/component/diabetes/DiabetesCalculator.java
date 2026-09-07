@@ -72,9 +72,6 @@ public class DiabetesCalculator {
         BigDecimal totalFat = BigDecimal.ZERO;
         BigDecimal totalFiber = BigDecimal.ZERO;
 
-        BigDecimal weightedGiSum = BigDecimal.ZERO;
-        BigDecimal carbsWithGi = BigDecimal.ZERO;
-
         for (MealEntryResponse entry : entries) {
             BigDecimal carbs = entry.nutrition().carbohydrates() != null ? entry.nutrition().carbohydrates() : BigDecimal.ZERO;
             totalCarbs = totalCarbs.add(carbs);
@@ -85,12 +82,6 @@ public class DiabetesCalculator {
                 totalFat = totalFat.add(entry.nutrition().fat());
             if (entry.nutrition().fiber() != null)
                 totalFiber = totalFiber.add(entry.nutrition().fiber());
-
-            Integer gi = entry.nutrition().glycemicIndex();
-            if (gi != null && carbs.compareTo(BigDecimal.ZERO) > 0) {
-                weightedGiSum = weightedGiSum.add(carbs.multiply(BigDecimal.valueOf(gi)));
-                carbsWithGi = carbsWithGi.add(carbs);
-            }
         }
 
         BigDecimal averageGi = calculateAverageGlycemicIndex(entries);
@@ -137,8 +128,7 @@ public class DiabetesCalculator {
     }
 
     private DiabetesCalcDataDto calculateInternal(BigDecimal carbs, BigDecimal protein, BigDecimal fat, BigDecimal fiber, BigDecimal glycemicIndex, UserProfile profile, LocalTime time) {
-        BigDecimal netCarbs = carbs.subtract(fiber).max(BigDecimal.ZERO);
-        BigDecimal cu = netCarbs.divide(CU_DIVISOR, 2, RoundingMode.HALF_UP);
+        BigDecimal cu = carbs.divide(CU_DIVISOR, 2, RoundingMode.HALF_UP);
 
         BigDecimal proteinKcal = protein.multiply(PROTEIN_KCAL);
         BigDecimal fatKcal = fat.multiply(FAT_KCAL);
