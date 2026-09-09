@@ -12,7 +12,7 @@ app:
       url: https://world.openfoodfacts.org
       user-agent: GluQalc/1.0 (rozga.szymon@gmail.com)
   mail:
-    from: no-reply@srozga.pl
+    from: ${MAIL_FROM}
   jwt:
     secret: ${JWT_SECRET}
     expiration-time-ms: 900000
