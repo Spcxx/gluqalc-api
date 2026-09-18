@@ -59,6 +59,8 @@ public class UserProfileService {
         profile.setInsulinFatProteinRatio(request.insulinFatProteinRatio());
         profile.setInsulinDeliveryMethod(request.insulinDeliveryMethod());
         profile.setCombinedInsulinCalculationMethod(request.combinedInsulinCalculationMethod());
+        profile.setTddMultiplier(request.tddMultiplier());
+        profile.setDailyBasalInsulin(request.dailyBasalInsulin());
 
         if (request.hourlyCarbRatio() != null) {
             try {
@@ -158,6 +160,8 @@ public class UserProfileService {
                 p.getInsulinDeliveryMethod(),
                 p.getCombinedInsulinCalculationMethod(),
                 icrMap,
+                p.getTddMultiplier(),
+                p.getDailyBasalInsulin(),
                 targets
         );
     }

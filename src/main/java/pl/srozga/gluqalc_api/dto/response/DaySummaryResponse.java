@@ -12,6 +12,8 @@ public record DaySummaryResponse(
         @Schema(description = "Total nutrients consumed by the user on this day")
         NutritionalValuesResponse consumed,
         @Schema(description = "Remaining nutrients to reach the daily target (can be negative if exceeded)")
-        NutritionalValuesResponse remaining
+        NutritionalValuesResponse remaining,
+        @Schema(description = "Summary of calculated insulin doses for the day")
+        DailyInsulinSummaryResponse insulinSummary
 ) {
 }

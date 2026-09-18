@@ -71,6 +71,10 @@ public class UserProfile {
     @Convert(converter = AttributeEncryptor.class)
     @Column(name = "macro_strategy")
     private String macroStrategyJson;
+    @Convert(converter = BigDecimalCryptoConverter.class)
+    private BigDecimal tddMultiplier;
+    @Convert(converter = BigDecimalCryptoConverter.class)
+    private BigDecimal dailyBasalInsulin;
 
     @Convert(converter = BigDecimalCryptoConverter.class)
     private BigDecimal insulinSensitivityFactor;
