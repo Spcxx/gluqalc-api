@@ -45,6 +45,10 @@ public record UserProfileResponse(
         CombinedInsulinCalculationMethod combinedInsulinCalculationMethod,
         @Schema(description = "Insulin to Carbohydrate Ratio (ICR) by hour of the day", example = "{\"8\": 1.1, \"14\": 0.9}")
         Map<Integer, BigDecimal> hourlyCarbRatio,
+        @Schema(description = "User's configured Total Daily Dose (TDD) multiplier (U/kg)", example = "0.55")
+        BigDecimal tddMultiplier,
+        @Schema(description = "Total daily basal insulin (sum of 24h pump profile or long-acting pen injections)", example = "18.5")
+        BigDecimal dailyBasalInsulin,
         @Schema(description = "Aggregated metabolic and nutritional targets calculated based on the profile data")
         NutritionTargetsResponse targets
 ) {

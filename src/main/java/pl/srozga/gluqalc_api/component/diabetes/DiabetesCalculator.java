@@ -127,6 +127,31 @@ public class DiabetesCalculator {
         return null;
     }
 
+    public BigDecimal calculateEstimatedDailyBolusTarget(UserProfile profile) {
+        if (profile.getWeightInKg() == null ||
+                profile.getTddMultiplier() == null ||
+                profile.getDailyBasalInsulin() == null) {
+            return null;
+        }
+
+        try {
+            BigDecimal weight = profile.getWeightInKg();
+            BigDecimal tddMultiplier = profile.getTddMultiplier();
+            BigDecimal basal = profile.getDailyBasalInsulin();
+
+            BigDecimal tdd = weight.multiply(tddMultiplier);
+            BigDecimal bolusTarget = tdd.subtract(basal);
+            if (bolusTarget.compareTo(BigDecimal.ZERO) < 0) {
+                bolusTarget = BigDecimal.ZERO;
+            }
+
+            return bolusTarget.setScale(1, RoundingMode.HALF_UP);
+        } catch (Exception e) {
+            log.warn("Could not calculate estimated bolus target for user {}", profile.getId());
+            return null;
+        }
+    }
+
     private DiabetesCalcDataDto calculateInternal(BigDecimal carbs, BigDecimal protein, BigDecimal fat, BigDecimal fiber, BigDecimal glycemicIndex, UserProfile profile, LocalTime time) {
         BigDecimal cu = carbs.divide(CU_DIVISOR, 2, RoundingMode.HALF_UP);
 
