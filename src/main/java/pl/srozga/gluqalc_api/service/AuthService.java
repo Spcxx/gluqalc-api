@@ -80,13 +80,7 @@ public class AuthService {
     @Transactional
     public TokenResponse loginWithGoogle(String idTokenString, String deviceId, String ipAddress, String userAgent) {
         try {
-            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
-                    .setAudience(Collections.singletonList(googleClientId))
-                    .build();
-            GoogleIdToken idToken = verifier.verify(idTokenString);
-            if (idToken == null)
-                throw new TokenAuthenticationException("Invalid Google ID token");
-
+            GoogleIdToken idToken = verifyGoogleIdToken(idTokenString);
             String email = idToken.getPayload().getEmail();
 
             User user = userRepository.findByEmail(email).orElseGet(() -> {
@@ -145,13 +139,7 @@ public class AuthService {
     @Transactional
     public void linkGoogleAccount(String idTokenString, UUID userId) {
         try {
-            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
-                    .setAudience(Collections.singletonList(googleClientId))
-                    .build();
-            GoogleIdToken idToken = verifier.verify(idTokenString);
-            if (idToken == null)
-                throw new TokenAuthenticationException("Invalid Google ID token");
-
+            GoogleIdToken idToken = verifyGoogleIdToken(idTokenString);
             String email = idToken.getPayload().getEmail();
             User user = userRepository.findByIdAndDeletedFalse(userId)
                     .orElseThrow(() -> new ApplicationAuthenticationException("User not found"));
@@ -194,5 +182,16 @@ public class AuthService {
                 expiresIn,
                 session.getDeviceId()
         );
+    }
+
+    private GoogleIdToken verifyGoogleIdToken(String idTokenString) throws GeneralSecurityException, IOException {
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
+
+        GoogleIdToken idToken = verifier.verify(idTokenString);
+        if (idToken == null)
+            throw new TokenAuthenticationException("Invalid Google ID token");
+        return idToken;
     }
 }
