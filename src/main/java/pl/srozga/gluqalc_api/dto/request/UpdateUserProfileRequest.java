@@ -66,5 +66,13 @@ public record UpdateUserProfileRequest(
         CombinedInsulinCalculationMethod combinedInsulinCalculationMethod,
         @Schema(description = "Insulin to Carbohydrate Ratio (ICR) mapped by hour of the day (0-23)", example = "{\"8\": 1.2, \"14\": 1.0, \"20\": 1.5}")
         @ValidHourlyMap
-        Map<@Min(0) @Max(23) Integer, @Positive BigDecimal> hourlyCarbRatio
+        Map<@Min(0) @Max(23) Integer, @Positive BigDecimal> hourlyCarbRatio,
+        @Schema(description = "Total Daily Dose (TDD) multiplier per kg of body weight for insulin estimation", example = "0.55")
+        @Positive(message = "TDD multiplier must be positive")
+        @Digits(integer = 2, fraction = 2, message = "Invalid TDD multiplier format")
+        BigDecimal tddMultiplier,
+        @Schema(description = "Total daily basal insulin (sum of 24h pump profile or long-acting pen injections)", example = "18.5")
+        @PositiveOrZero(message = "Basal insulin cannot be negative")
+        @Digits(integer = 3, fraction = 2)
+        BigDecimal dailyBasalInsulin
 ) {}
