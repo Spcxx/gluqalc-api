@@ -7,7 +7,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.srozga.gluqalc_api.common.MacroType;
+import pl.srozga.gluqalc_api.component.diabetes.DiabetesCalculator;
 import pl.srozga.gluqalc_api.component.nutrition.NutritionCalculator;
+import pl.srozga.gluqalc_api.dto.internal.DiabetesCalcDataDto;
+import pl.srozga.gluqalc_api.dto.response.DailyInsulinSummaryResponse;
 import pl.srozga.gluqalc_api.dto.response.NutritionalValuesResponse;
 import pl.srozga.gluqalc_api.dto.internal.UserCalcDataDto;
 import pl.srozga.gluqalc_api.dto.response.DaySummaryResponse;
@@ -37,6 +40,7 @@ public class MealLogSummaryService {
     private final MealEntryRepository mealEntryRepository;
     private final NutritionCalculator nutritionCalculator;
     private final ObjectMapper objectMapper;
+    private final DiabetesCalculator diabetesCalculator;
 
     @Transactional(readOnly = true)
     public DaySummaryResponse getDaySummary(AuthUser user, LocalDate date) {
@@ -55,7 +59,7 @@ public class MealLogSummaryService {
             baseCalc = nutritionCalculator.calculate(profile);
         } catch (DomainValidationException | IllegalArgumentException e) {
             log.debug("Cannot calculate targets for user {}: {}", profile.getId(), e.getMessage());
-            return emptySummary(date, meals);
+            return emptySummary(date, meals, profile);
         }
 
         int dayOffset = getDayOffset(profile, date);
@@ -73,11 +77,12 @@ public class MealLogSummaryService {
                 target.fat().subtract(consumed.fat()),
                 target.carbohydrates().subtract(consumed.carbohydrates())
         );
+        DailyInsulinSummaryResponse insulinSummary = buildInsulinSummary(meals, profile);
 
-        return new DaySummaryResponse(date, target, consumed, remaining);
+        return new DaySummaryResponse(date, target, consumed, remaining, insulinSummary);
     }
 
-    private DaySummaryResponse emptySummary(LocalDate date, List<MealEntry> meals) {
+    private DaySummaryResponse emptySummary(LocalDate date, List<MealEntry> meals, UserProfile profile) {
         NutritionalValuesResponse consumed = sumConsumed(meals);
         NutritionalValuesResponse zero = NutritionalValuesResponse.zero();
         NutritionalValuesResponse remaining = new NutritionalValuesResponse(
@@ -86,7 +91,55 @@ public class MealLogSummaryService {
                 zero.fat().subtract(consumed.fat()),
                 zero.carbohydrates().subtract(consumed.carbohydrates())
         );
-        return new DaySummaryResponse(date, zero, consumed, remaining);
+        DailyInsulinSummaryResponse insulinSummary = buildInsulinSummary(meals, profile);
+        return new DaySummaryResponse(date, zero, consumed, remaining, insulinSummary);
+    }
+
+    private DailyInsulinSummaryResponse buildInsulinSummary(List<MealEntry> meals, UserProfile profile) {
+        BigDecimal totalCu = BigDecimal.ZERO;
+        BigDecimal totalFpu = BigDecimal.ZERO;
+        BigDecimal consumedCarbDose = BigDecimal.ZERO;
+        BigDecimal consumedFatProteinDose = BigDecimal.ZERO;
+        BigDecimal consumedBolusDose = BigDecimal.ZERO;
+
+        for (MealEntry m : meals) {
+            DiabetesCalcDataDto calc = diabetesCalculator.calculateForMeal(m, profile, m.getConsumedAtTime());
+
+            if (calc.carbUnit() != null) totalCu = totalCu.add(calc.carbUnit());
+            if (calc.fatProteinUnit() != null) totalFpu = totalFpu.add(calc.fatProteinUnit());
+            if (calc.carbDose() != null) consumedCarbDose = consumedCarbDose.add(calc.carbDose());
+            if (calc.fatProteinDose() != null) consumedFatProteinDose = consumedFatProteinDose.add(calc.fatProteinDose());
+            if (calc.totalDose() != null) consumedBolusDose = consumedBolusDose.add(calc.totalDose());
+        }
+
+        BigDecimal estimatedTdd = null;
+        BigDecimal basal = profile.getDailyBasalInsulin();
+        BigDecimal estimatedBolusTarget = diabetesCalculator.calculateEstimatedDailyBolusTarget(profile);
+        BigDecimal remainingBolusTarget = null;
+
+        if (profile.getWeightInKg() != null && profile.getTddMultiplier() != null) {
+            estimatedTdd = profile.getWeightInKg()
+                    .multiply(profile.getTddMultiplier())
+                    .setScale(1, RoundingMode.HALF_UP);
+        }
+
+        if (estimatedBolusTarget != null) {
+            remainingBolusTarget = estimatedBolusTarget
+                    .subtract(consumedBolusDose)
+                    .setScale(1, RoundingMode.HALF_UP);
+        }
+
+        return new DailyInsulinSummaryResponse(
+                totalCu,
+                totalFpu,
+                consumedCarbDose,
+                consumedFatProteinDose,
+                consumedBolusDose,
+                estimatedTdd,
+                basal,
+                estimatedBolusTarget,
+                remainingBolusTarget
+        );
     }
 
     private NutritionalValuesResponse sumConsumed(List<MealEntry> meals) {
