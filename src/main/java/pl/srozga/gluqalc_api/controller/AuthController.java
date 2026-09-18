@@ -153,7 +153,7 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "Invalid current email or password"),
             @ApiResponse(responseCode = "409", description = "Conflict: Account is already verified, new email is the same or email is already taken")
     })
-    @PostMapping("/change-email")
+    @PostMapping("/email-change")
     @PreAuthorize("isAnonymous()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void changeUnverifiedEmail(@Valid @RequestBody ChangeUnverifiedEmailRequest request) {

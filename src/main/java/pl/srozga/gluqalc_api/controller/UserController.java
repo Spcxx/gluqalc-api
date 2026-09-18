@@ -214,7 +214,7 @@ public class UserController {
             @ApiResponse(responseCode = "429", description = "Too many requests")
     })
     @RateLimit(maxRequests = 3, timeWindowSeconds = 300)
-    @PostMapping("/change-email/request")
+    @PostMapping("/users/me/email-change/request")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void requestVerifiedEmailChange(
@@ -234,7 +234,7 @@ public class UserController {
             @ApiResponse(responseCode = "429", description = "Too many requests")
     })
     @RateLimit(maxRequests = 5, timeWindowSeconds = 60)
-    @PostMapping("/change-email/confirm")
+    @PostMapping("/users/me/email-change/confirm")
     @PreAuthorize("isAuthenticated()")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void confirmVerifiedEmailChange(
