@@ -1,0 +1,7 @@
+logging:
+  level:
+    root: INFO
+    pl.srozga: INFO
+    org.springframework: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: ERROR
