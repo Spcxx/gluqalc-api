@@ -163,9 +163,9 @@ public class ProductService {
                 .filter(name -> name.getId().equals(nameId))
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException("Product name not found"));
-        if (!user.roles().contains(UserRole.ADMIN)
-                && (!productName.getCreatedBy().equals(user.id()) || productName.isApproved()))
+        if (!user.roles().contains(UserRole.ADMIN) && (!Objects.equals(productName.getCreatedBy(), user.id()) || productName.isApproved()))
             throw new ConflictException("Only your pending product names can be deleted");
+
         product.getNames().remove(productName);
         productRepository.save(product);
     }
@@ -220,10 +220,10 @@ public class ProductService {
         Product product = productRepository.findByIdVisibleToUser(productId, userId)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
 
-         BigDecimal effectiveCarbs = request.carbohydrates() != null ? request.carbohydrates() : product.getCarbohydrates();
-         BigDecimal effectiveSugars = request.sugars() != null ? request.sugars() : product.getSugars();
-         BigDecimal effectiveFat = request.fat() != null ? request.fat() : product.getFat();
-         BigDecimal effectiveSatFat = request.saturatedFat() != null ? request.saturatedFat() : product.getSaturatedFat();
+        BigDecimal effectiveCarbs = request.carbohydrates() != null ? request.carbohydrates() : product.getCarbohydrates();
+        BigDecimal effectiveSugars = request.sugars() != null ? request.sugars() : product.getSugars();
+        BigDecimal effectiveFat = request.fat() != null ? request.fat() : product.getFat();
+        BigDecimal effectiveSatFat = request.saturatedFat() != null ? request.saturatedFat() : product.getSaturatedFat();
 
         validateMacroRelations(effectiveCarbs, effectiveSugars, effectiveFat, effectiveSatFat);
 
@@ -321,8 +321,7 @@ public class ProductService {
         ProductPortion portion = productPortionRepository.findById(portionId)
                 .orElseThrow(() -> new NotFoundException("Portion not found"));
 
-        boolean canEditDirectly = portion.getCreatedBy().equals(user.id()) && !portion.isPublished();
-
+        boolean canEditDirectly = Objects.equals(portion.getCreatedBy(), user.id()) && !portion.isPublished();
         if (canEditDirectly) {
             updateIfPresent(name, portion::setName);
             updateIfPresent(weight, portion::setWeightInGrams);
@@ -361,7 +360,7 @@ public class ProductService {
         ProductPortion portion = productPortionRepository.findById(portionId)
                 .orElseThrow(() -> new NotFoundException("Portion not found"));
 
-        boolean isOwner = portion.getCreatedBy().equals(user.id());
+        boolean isOwner = Objects.equals(portion.getCreatedBy(), user.id());
         boolean isPrivate = !portion.isPublished();
 
         if (!isOwner)
@@ -536,7 +535,7 @@ public class ProductService {
                 null
         );
 
-        Product savedProduct = createProductInternal(request, true, user.id());
+        Product savedProduct = createProductInternal(request, true, null);
 
         log.info("User {} imported and published product with barcode {} from external provider (OFF)", user.id(), barcode);
 
