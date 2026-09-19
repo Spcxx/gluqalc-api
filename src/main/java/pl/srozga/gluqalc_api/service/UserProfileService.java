@@ -115,6 +115,9 @@ public class UserProfileService {
 
         boolean changed = false;
 
+        BigDecimal previousDailyKcalGoal = getDailyGoalSafely(profile);
+        int oldDiff = profile.getKcalGoalDifference() != null ? profile.getKcalGoalDifference() : 0;
+
         if (request.weightInKg() != null && !Objects.equals(profile.getWeightInKg(), request.weightInKg())) {
             profile.setWeightInKg(request.weightInKg());
             changed = true;
@@ -128,6 +131,23 @@ public class UserProfileService {
             changed = true;
         }
 
+        if (changed && previousDailyKcalGoal != null && oldDiff != 0) {
+            try {
+                BigDecimal newTdee = nutritionCalculator.calculate(profile).tdee();
+
+                int newDiff = previousDailyKcalGoal.subtract(newTdee).intValue();
+                if (oldDiff < 0) {
+                    newDiff = Math.min(newDiff, 0);
+                } else if (oldDiff > 0) {
+                    newDiff = Math.max(newDiff, 0);
+                }
+
+                profile.setKcalGoalDifference(newDiff);
+            } catch (Exception e) {
+                log.warn("Could not recalibrate kcal goal difference automatically for user {} due to missing data: {}", profile.getId(), e.getMessage());
+            }
+        }
+
         UserProfile savedProfile = userProfileRepository.save(profile);
 
         if (changed) {
@@ -136,6 +156,14 @@ public class UserProfileService {
 
         log.info("Biometrics partially updated for user: {}", authUser.id());
         return mapToResponse(savedProfile);
+    }
+
+    private BigDecimal getDailyGoalSafely(UserProfile profile) {
+        try {
+            return nutritionCalculator.calculate(profile).dailyGoalKcal();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private boolean hasAnyBiometrics(UpdateUserProfileRequest request) {
