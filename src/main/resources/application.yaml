@@ -11,6 +11,11 @@ app:
     open-food-facts:
       url: https://world.openfoodfacts.org
       user-agent: ${OFF_USER_AGENT}
+      contact-email: ${OFF_CONTACT_EMAIL}
+      write:
+        user-id: ${OFF_WRITE_USER_ID}
+        password: ${OFF_WRITE_PASSWORD}
+        app-uuid: ${OFF_WRITE_APP_UUID}
   mail:
     from: ${MAIL_FROM}
   jwt:
