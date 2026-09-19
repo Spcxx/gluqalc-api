@@ -547,18 +547,10 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<ProductDto> findLocalProductsDto(String query, UUID userId) {
         String normalizedQuery = query.trim().toLowerCase(Locale.ROOT);
-        return productRepository.searchProducts(normalizedQuery, userId, maxSearchDistance(normalizedQuery))
+        return productRepository.searchProducts(normalizedQuery, userId)
                 .stream()
                 .map(product -> assembleSmartProduct(product, userId, false))
                 .collect(Collectors.toList());
-    }
-
-    private int maxSearchDistance(String query) {
-        if (query.length() <= 4)
-            return 1;
-        if (query.length() <= 8)
-            return 3;
-        return 3;
     }
 
     private Product createProductInternal(AddProductRequest productRequest, boolean isPublished, UUID creatorId) {

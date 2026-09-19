@@ -47,55 +47,61 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     """)
     List<Product> findAllOwnedByUser(UUID userId);
     @Query(value = """
+        WITH query_tokens AS (
+            SELECT token, length(token) as len
+            FROM regexp_split_to_table(LOWER(TRIM(:query)), '\\s+') AS token
+            WHERE token <> ''
+        ),
+        token_count AS (
+            SELECT COUNT(*) as total FROM query_tokens
+        )
         SELECT p.*
         FROM products p
         WHERE p.deleted = false
           AND (p.published = true OR p.created_by = :userId)
           AND (
-              -- 1. NAJSZYBSZE: Dokładne dopasowanie i zwykłe LIKE
               p.barcode = :query
-              OR p.name ILIKE CONCAT('%', :query, '%')
-              OR p.brand ILIKE CONCAT('%', :query, '%')
-        
-              -- 2. SZYBKIE: LIKE w aliasach
-              OR EXISTS (
-                  SELECT 1
-                  FROM product_names alias_name
-                  WHERE alias_name.product_id = p.id
-                    AND alias_name.approved = true
-                    AND alias_name.name ILIKE CONCAT('%', :query, '%')
-              )
-        
-              -- 3. CIĘŻKIE (ale zoptymalizowane): Levenshtein dla nazwy i marki razem
-              OR EXISTS (
-                  SELECT 1
-                  FROM regexp_split_to_table(
-                      regexp_replace(LOWER(CONCAT_WS(' ', p.name, p.brand)), '[^[:alnum:]]+', ' ', 'g'),
-                      '\\s+'
-                  ) AS token
-                  WHERE NULLIF(token, '') IS NOT NULL -- eliminuje fałszywe dopasowania pustych znaków
-                    AND levenshtein_less_equal(token, LOWER(:query), :maxDistance) <= :maxDistance
-              )
-        
-              -- 4. CIĘŻKIE: Levenshtein w aliasach
-              OR EXISTS (
-                  SELECT 1
-                  FROM product_names alias_name
-                  WHERE alias_name.product_id = p.id
-                    AND alias_name.approved = true
-                    AND levenshtein_less_equal(LOWER(alias_name.name), LOWER(:query), :maxDistance) <= :maxDistance
-              )
+              OR (
+                  SELECT COUNT(*) FROM query_tokens qt
+                  WHERE
+                     p.name ILIKE CONCAT('%', qt.token, '%')
+                     OR p.brand ILIKE CONCAT('%', qt.token, '%')
+                     OR EXISTS (
+                         SELECT 1 FROM product_names pn
+                         WHERE pn.product_id = p.id AND pn.approved = true
+                           AND pn.name ILIKE CONCAT('%', qt.token, '%')
+                     )
+                     OR (
+                         qt.len >= 4 AND EXISTS (
+                             SELECT 1 FROM regexp_split_to_table(
+                                 regexp_replace(LOWER(CONCAT_WS(' ', p.name, p.brand)), '[^[:alnum:]]+', ' ', 'g'),
+                                 '\\s+'
+                             ) AS db_token
+                             WHERE NULLIF(db_token, '') IS NOT NULL
+                               AND levenshtein_less_equal(
+                                   db_token,
+                                   qt.token,
+                                   CASE WHEN qt.len <= 5 THEN 1 WHEN qt.len <= 8 THEN 2 ELSE 3 END
+                               ) <= CASE WHEN qt.len <= 5 THEN 1 WHEN qt.len <= 8 THEN 2 ELSE 3 END
+                         )
+                     )
+              ) = (SELECT total FROM token_count)
           )
         ORDER BY
             CASE WHEN p.barcode = :query THEN 0 ELSE 1 END,
             CASE WHEN p.name ILIKE :query THEN 0 ELSE 1 END,
-            LENGTH(p.name) ASC,
-            p.name ASC;
+            CASE WHEN p.name ILIKE CONCAT(:query, '%') THEN 0 ELSE 1 END,
+            (
+                SELECT COUNT(*) FROM query_tokens qt
+                WHERE p.name ILIKE CONCAT('%', qt.token, '%')
+                   OR p.brand ILIKE CONCAT('%', qt.token, '%')
+            ) DESC,
+            LENGTH(p.name),
+            p.name
     """, nativeQuery = true)
     List<Product> searchProducts(
             @Param("query") String query,
-            @Param("userId") UUID userId,
-            @Param("maxDistance") int maxDistance
+            @Param("userId") UUID userId
     );
 
     @Modifying
