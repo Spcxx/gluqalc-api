@@ -541,6 +541,15 @@ public class ProductService {
 
         Product savedProduct = createProductInternal(request, true, null);
 
+        if (offDto.portions() != null && !offDto.portions().isEmpty()) {
+            for (var p : offDto.portions()) {
+                if (!p.name().equalsIgnoreCase("100g")) {
+                    addPortionToProduct(savedProduct, p.name(), p.weightInGrams(), true, null);
+                }
+            }
+            productRepository.save(savedProduct);
+        }
+
         log.info("User {} imported and published product with barcode {} from external provider (OFF)", user.id(), barcode);
 
         return productMapper.toDto(savedProduct);

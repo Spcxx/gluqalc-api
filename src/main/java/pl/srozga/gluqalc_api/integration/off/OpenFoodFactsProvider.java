@@ -17,6 +17,8 @@ import pl.srozga.gluqalc_api.integration.off.dto.OffSearchResponse;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -38,7 +40,7 @@ public class OpenFoodFactsProvider implements ProductProvider {
             OffResponse response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/api/v2/product/{barcode}")
-                            .queryParam("fields", "code,product_name,brands,nutriments")
+                            .queryParam("fields", "code,product_name,brands,nutriments,quantity,product_quantity,product_quantity_unit,serving_size,serving_quantity")
                             .build(barcode)
                     ).retrieve()
                     .body(OffResponse.class);
@@ -74,7 +76,7 @@ public class OpenFoodFactsProvider implements ProductProvider {
                         .queryParam("lc", finalLanguageCode)
                         .queryParam("cc", finalLanguageCode)
                         .queryParam("page_size", limit)
-                        .queryParam("fields", "code,product_name,brands,nutriments")
+                        .queryParam("fields", "code,product_name,brands,nutriments,quantity,product_quantity,product_quantity_unit,serving_size,serving_quantity")
                         .build()
                 ).retrieve()
                 .body(OffSearchResponse.class);
@@ -127,9 +129,19 @@ public class OpenFoodFactsProvider implements ProductProvider {
                 null
         );
 
-        ProductPortionDto defaultPortion = new ProductPortionDto(
-                null, "100g", new BigDecimal("100"), null, true, null
-        );
+        List<ProductPortionDto> portions = new ArrayList<>();
+
+        BigDecimal packWeight = p.productQuantity();
+        if (packWeight == null || packWeight.compareTo(BigDecimal.ZERO) <= 0) {
+            packWeight = parseWeightFromQuantityString(p.quantity());
+        }
+        if (packWeight != null && packWeight.compareTo(BigDecimal.ZERO) > 0) {
+            portions.add(new ProductPortionDto(null, "1 pack", packWeight, null, true, null));
+        }
+
+        if (p.servingQuantity() != null && p.servingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+            portions.add(new ProductPortionDto(null, "1 serving", p.servingQuantity(), null, true, null));
+        }
 
         return new ProductDto(
                 null,
@@ -137,7 +149,7 @@ public class OpenFoodFactsProvider implements ProductProvider {
                 p.brands(),
                 barcode,
                 nutrition,
-                List.of(defaultPortion),
+                portions,
                 List.of(),
                 false,
                 null,
@@ -152,5 +164,22 @@ public class OpenFoodFactsProvider implements ProductProvider {
                 ),
                 PROVIDER
         );
+    }
+
+    private BigDecimal parseWeightFromQuantityString(String q) {
+        if (q == null) return null;
+        try {
+            String normalized = q.replace(',', '.');
+            Matcher m = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)\\s*(g|ml|kg)", Pattern.CASE_INSENSITIVE).matcher(normalized);
+            if (m.find()) {
+                BigDecimal val = new BigDecimal(m.group(1));
+                String unit = m.group(2).toLowerCase();
+                if ("kg".equals(unit)) {
+                    val = val.multiply(new BigDecimal("1000"));
+                }
+                return val;
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }
