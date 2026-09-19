@@ -67,13 +67,19 @@ public class MealCategoryService {
     }
 
     @Transactional
-    public void deleteCategory(UUID categoryId, AuthUser user) {
+    public void deleteCategory(UUID categoryId, AuthUser user, boolean force) {
         MealCategory category = mealCategoryRepository.findByIdAndUserId(categoryId, user.id())
                 .orElseThrow(() -> new NotFoundException("Meal category not found"));
 
         boolean hasEntries = mealEntryRepository.existsByMealCategoryId(categoryId);
-        if (hasEntries)
-            throw new ConflictException("Cannot delete category with existing meal entries");
+        if (hasEntries) {
+            if (!force) {
+                throw new ConflictException("Cannot delete category with existing meal entries");
+            } else {
+                log.info("Force deleting all meal entries for category {} (user {})", categoryId, user.id());
+                mealEntryRepository.deleteAllByMealCategoryId(categoryId);
+            }
+        }
 
         mealCategoryRepository.delete(category);
         log.info("Deleted meal category with id {} for user {}", categoryId, user.id());

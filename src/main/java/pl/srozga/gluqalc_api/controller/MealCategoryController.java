@@ -1,6 +1,7 @@
 package pl.srozga.gluqalc_api.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -83,8 +84,10 @@ public class MealCategoryController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCategory(
             @AuthenticationPrincipal AuthUser user,
-            @PathVariable UUID id
+            @PathVariable UUID id,
+            @Parameter(description = "If true, forcefully deletes the category along with all associated meal entries")
+            @RequestParam(defaultValue = "false") boolean force
     ) {
-        mealCategoryService.deleteCategory(id, user);
+        mealCategoryService.deleteCategory(id, user, force);
     }
 }
