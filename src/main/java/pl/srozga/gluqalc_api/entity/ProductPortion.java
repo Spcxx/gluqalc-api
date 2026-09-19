@@ -42,7 +42,6 @@ public class ProductPortion {
     @Column(nullable = false)
     private boolean published;
 
-    @Column(nullable = false)
     private UUID createdBy;
 
     @CreatedDate

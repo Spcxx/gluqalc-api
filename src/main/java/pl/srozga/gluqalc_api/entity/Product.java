@@ -75,7 +75,6 @@ public class Product {
     @Builder.Default
     private boolean published = false;
 
-    @Column(nullable = false)
     private UUID createdBy;
 
     @Column(nullable = false)
