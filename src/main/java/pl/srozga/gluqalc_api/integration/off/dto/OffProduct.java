@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -16,6 +17,15 @@ public record OffProduct(
         String brands,
         OffNutriments nutriments,
         @JsonProperty("countries_tags")
-        List<String> countriesTags
+        List<String> countriesTags,
+        String quantity,
+        @JsonProperty("product_quantity")
+        BigDecimal productQuantity,
+        @JsonProperty("product_quantity_unit")
+        String productQuantityUnit,
+        @JsonProperty("serving_size")
+        String servingSize,
+        @JsonProperty("serving_quantity")
+        BigDecimal servingQuantity
 ) {
 }
