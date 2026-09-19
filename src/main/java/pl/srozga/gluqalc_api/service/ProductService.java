@@ -25,6 +25,7 @@ import pl.srozga.gluqalc_api.exception.ConflictException;
 import pl.srozga.gluqalc_api.exception.DomainValidationException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
 import pl.srozga.gluqalc_api.integration.ProductProvider;
+import pl.srozga.gluqalc_api.integration.off.OpenFoodFactsSyncClient;
 import pl.srozga.gluqalc_api.repository.*;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 
@@ -48,6 +49,7 @@ public class ProductService {
     private final ProductMapper productMapper;
     private final ProductProvider productProvider;
     private final ObjectProvider<ProductService> selfProvider;
+    private final OpenFoodFactsSyncClient openFoodFactsSyncClient;
 
     @Transactional
     @CacheEvict(value = "local_search_cache", allEntries = true)
@@ -264,6 +266,7 @@ public class ProductService {
         product.setPublished(true);
         product.getPortions().forEach(p -> p.setPublished(true));
         Product approvedProduct = productRepository.save(product);
+        openFoodFactsSyncClient.syncProductToOff(approvedProduct);
         log.info("Product {} approved by admin {}", approvedProduct.getId(), adminId);
     }
 
@@ -425,8 +428,9 @@ public class ProductService {
         updateIfPresent(change.getGlycemicIndex(), product::setGlycemicIndex);
 
         change.setDeleted(true);
-        productRepository.save(product);
+        Product savedProduct = productRepository.save(product);
         productChangeRepository.save(change);
+        openFoodFactsSyncClient.syncProductToOff(savedProduct);
         log.info("Product change {} approved and applied to product {}", changeId, product.getId());
     }
 
