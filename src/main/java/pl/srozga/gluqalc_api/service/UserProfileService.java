@@ -10,20 +10,27 @@ import org.springframework.transaction.annotation.Transactional;
 import pl.srozga.gluqalc_api.common.MacroType;
 import pl.srozga.gluqalc_api.component.nutrition.NutritionCalculator;
 import pl.srozga.gluqalc_api.dto.internal.UserCalcDataDto;
+import pl.srozga.gluqalc_api.dto.request.UpdateBiometricsRequest;
 import pl.srozga.gluqalc_api.dto.request.UpdateUserProfileRequest;
 import pl.srozga.gluqalc_api.dto.response.NutritionTargetsResponse;
+import pl.srozga.gluqalc_api.dto.response.UserProfileHistoryResponse;
 import pl.srozga.gluqalc_api.dto.response.UserProfileResponse;
 import pl.srozga.gluqalc_api.entity.User;
 import pl.srozga.gluqalc_api.entity.UserProfile;
+import pl.srozga.gluqalc_api.entity.UserProfileHistory;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
+import pl.srozga.gluqalc_api.repository.UserProfileHistoryRepository;
 import pl.srozga.gluqalc_api.repository.UserProfileRepository;
 import pl.srozga.gluqalc_api.repository.UserRepository;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -34,6 +41,7 @@ public class UserProfileService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final NutritionCalculator nutritionCalculator;
+    private final UserProfileHistoryRepository historyRepository;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(AuthUser user) {
@@ -46,6 +54,10 @@ public class UserProfileService {
     public UserProfileResponse updateProfile(AuthUser authUser, UpdateUserProfileRequest request) {
         UserProfile profile = userProfileRepository.findById(authUser.id())
                 .orElseGet(() -> createNewProfileEntity(authUser.id()));
+
+        boolean biometricsChanged = !Objects.equals(profile.getWeightInKg(), request.weightInKg())
+                || !Objects.equals(profile.getHeightInCm(), request.heightInCm())
+                || !Objects.equals(profile.getBodyFatPercentage(), request.bodyFatPercentage());
 
         profile.setGender(request.gender());
         profile.setWeightInKg(request.weightInKg());
@@ -87,9 +99,82 @@ public class UserProfileService {
         }
 
         UserProfile savedProfile = userProfileRepository.save(profile);
+        if (biometricsChanged && hasAnyBiometrics(request)) {
+            saveHistorySnapshot(savedProfile);
+            log.info("Biometric changes detected for user: {}. History snapshot saved.", authUser.id());
+        }
         log.info("User profile updated for user: {}", authUser.id());
 
         return mapToResponse(savedProfile);
+    }
+
+    @Transactional
+    public UserProfileResponse updateBiometrics(AuthUser authUser, UpdateBiometricsRequest request) {
+        UserProfile profile = userProfileRepository.findById(authUser.id())
+                .orElseThrow(() -> new NotFoundException("User profile not found. Please complete your profile setup first."));
+
+        boolean changed = false;
+
+        if (request.weightInKg() != null && !Objects.equals(profile.getWeightInKg(), request.weightInKg())) {
+            profile.setWeightInKg(request.weightInKg());
+            changed = true;
+        }
+        if (request.heightInCm() != null && !Objects.equals(profile.getHeightInCm(), request.heightInCm())) {
+            profile.setHeightInCm(request.heightInCm());
+            changed = true;
+        }
+        if (request.bodyFatPercentage() != null && !Objects.equals(profile.getBodyFatPercentage(), request.bodyFatPercentage())) {
+            profile.setBodyFatPercentage(request.bodyFatPercentage());
+            changed = true;
+        }
+
+        UserProfile savedProfile = userProfileRepository.save(profile);
+
+        if (changed) {
+            saveHistorySnapshot(savedProfile);
+        }
+
+        log.info("Biometrics partially updated for user: {}", authUser.id());
+        return mapToResponse(savedProfile);
+    }
+
+    private boolean hasAnyBiometrics(UpdateUserProfileRequest request) {
+        return request.weightInKg() != null || request.heightInCm() != null || request.bodyFatPercentage() != null;
+    }
+
+    private void saveHistorySnapshot(UserProfile profile) {
+        UserProfileHistory history = UserProfileHistory.builder()
+                .user(profile.getUser())
+                .weightInKg(profile.getWeightInKg())
+                .heightInCm(profile.getHeightInCm())
+                .bodyFatPercentage(profile.getBodyFatPercentage())
+                .build();
+        historyRepository.save(history);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserProfileHistoryResponse> getProfileHistory(AuthUser user) {
+        return historyRepository.findAllByUserIdOrderByCreatedAtDesc(user.id())
+                .stream()
+                .map(this::mapToHistoryResponse)
+                .toList();
+    }
+
+    private UserProfileHistoryResponse mapToHistoryResponse(UserProfileHistory entity) {
+        BigDecimal bmi = null;
+        if (entity.getWeightInKg() != null && entity.getHeightInCm() != null && entity.getHeightInCm().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal heightInMeters = entity.getHeightInCm().divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+            bmi = entity.getWeightInKg().divide(heightInMeters.pow(2), 2, RoundingMode.HALF_UP);
+        }
+
+        return new UserProfileHistoryResponse(
+                entity.getId(),
+                entity.getWeightInKg(),
+                entity.getHeightInCm(),
+                entity.getBodyFatPercentage(),
+                bmi,
+                entity.getCreatedAt()
+        );
     }
 
     private UserProfile createNewProfileEntity(UUID userId) {
