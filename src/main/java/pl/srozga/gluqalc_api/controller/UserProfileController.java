@@ -9,10 +9,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import pl.srozga.gluqalc_api.dto.request.UpdateBiometricsRequest;
 import pl.srozga.gluqalc_api.dto.request.UpdateUserProfileRequest;
+import pl.srozga.gluqalc_api.dto.response.UserProfileHistoryResponse;
 import pl.srozga.gluqalc_api.dto.response.UserProfileResponse;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import pl.srozga.gluqalc_api.service.UserProfileService;
+
+import java.util.List;
 
 @Tag(name = "04. User Profile", description = "Endpoints for managing personal health settings, diabetic parameters and nutritional goals")
 @RestController
@@ -47,5 +51,33 @@ public class UserProfileController {
             @Valid @RequestBody UpdateUserProfileRequest request
     ) {
         return userProfileService.updateProfile(user, request);
+    }
+
+    @Operation(summary = "Get profile history", description = "Retrieves the history of biometric changes (weight, height, body fat, BMI) ordered from newest to oldest.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved profile history"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "Profile not found")
+    })
+    @GetMapping("/history")
+    @PreAuthorize("isAuthenticated()")
+    public List<UserProfileHistoryResponse> getProfileHistory(@AuthenticationPrincipal AuthUser user) {
+        return userProfileService.getProfileHistory(user);
+    }
+
+    @Operation(summary = "Update my biometrics", description = "Updates selected biometric parameters (weight, height, body fat) without modifying macro/insulin settings and creates a history snapshot.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Biometrics successfully updated"),
+            @ApiResponse(responseCode = "400", description = "Validation error"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "Profile not found")
+    })
+    @PatchMapping("/biometrics")
+    @PreAuthorize("isAuthenticated()")
+    public UserProfileResponse updateMyBiometrics(
+            @AuthenticationPrincipal AuthUser user,
+            @Valid @RequestBody UpdateBiometricsRequest request
+    ) {
+        return userProfileService.updateBiometrics(user, request);
     }
 }
