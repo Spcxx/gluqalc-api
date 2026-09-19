@@ -15,4 +15,5 @@ public interface MealEntryRepository extends JpaRepository<MealEntry, UUID> {
     Optional<MealEntry> findByIdAndUserId(UUID id, UUID userId);
     boolean existsByMealCategoryId(UUID mealCategoryId);
     List<MealEntry> findAllByUserIdAndConsumedAtBetween(UUID userId, LocalDate startDate, LocalDate endDate);
+    void deleteAllByMealCategoryId(UUID mealCategoryId);
 }
