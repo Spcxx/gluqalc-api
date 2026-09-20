@@ -198,8 +198,8 @@ public class DiabetesCalculator {
                 durationMinutes = 0;
         }
 
-        BigDecimal totalDose = carbDose.add(fatProteinDose).setScale(2, RoundingMode.HALF_UP);
         fatProteinDose = fatProteinDose.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalDose = carbDose.add(fatProteinDose);
 
         String description = generateTherapeuticAdvice(
                 carbDose,
