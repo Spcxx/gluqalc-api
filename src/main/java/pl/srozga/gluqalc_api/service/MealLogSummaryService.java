@@ -26,10 +26,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -102,14 +104,47 @@ public class MealLogSummaryService {
         BigDecimal consumedFatProteinDose = BigDecimal.ZERO;
         BigDecimal consumedBolusDose = BigDecimal.ZERO;
 
-        for (MealEntry m : meals) {
-            DiabetesCalcDataDto calc = diabetesCalculator.calculateForMeal(m, profile, m.getConsumedAtTime());
+        Map<UUID, List<MealEntry>> groupedByCategory = meals.stream()
+                .collect(Collectors.groupingBy(m -> m.getMealCategory().getId()));
 
-            if (calc.carbUnit() != null) totalCu = totalCu.add(calc.carbUnit());
-            if (calc.fatProteinUnit() != null) totalFpu = totalFpu.add(calc.fatProteinUnit());
-            if (calc.carbDose() != null) consumedCarbDose = consumedCarbDose.add(calc.carbDose());
-            if (calc.fatProteinDose() != null) consumedFatProteinDose = consumedFatProteinDose.add(calc.fatProteinDose());
-            if (calc.totalDose() != null) consumedBolusDose = consumedBolusDose.add(calc.totalDose());
+        for (List<MealEntry> categoryMeals : groupedByCategory.values()) {
+            if (categoryMeals.isEmpty()) continue;
+
+            BigDecimal carbs = BigDecimal.ZERO;
+            BigDecimal protein = BigDecimal.ZERO;
+            BigDecimal fat = BigDecimal.ZERO;
+            BigDecimal fiber = BigDecimal.ZERO;
+            BigDecimal weightedGiSum = BigDecimal.ZERO;
+            BigDecimal carbsWithGi = BigDecimal.ZERO;
+
+            for (MealEntry m : categoryMeals) {
+                BigDecimal c = m.getCarbohydrates() != null ? m.getCarbohydrates() : BigDecimal.ZERO;
+                carbs = carbs.add(c);
+                protein = protein.add(m.getProtein() != null ? m.getProtein() : BigDecimal.ZERO);
+                fat = fat.add(m.getFat() != null ? m.getFat() : BigDecimal.ZERO);
+                fiber = fiber.add(m.getFiber() != null ? m.getFiber() : BigDecimal.ZERO);
+
+                if (m.getGlycemicIndex() != null && c.compareTo(BigDecimal.ZERO) > 0) {
+                    weightedGiSum = weightedGiSum.add(c.multiply(BigDecimal.valueOf(m.getGlycemicIndex())));
+                    carbsWithGi = carbsWithGi.add(c);
+                }
+            }
+
+            BigDecimal averageGi = carbsWithGi.compareTo(BigDecimal.ZERO) > 0
+                    ? weightedGiSum.divide(carbsWithGi, 0, RoundingMode.HALF_UP)
+                    : null;
+
+            LocalTime time = categoryMeals.getFirst().getConsumedAtTime();
+
+            DiabetesCalcDataDto calc = diabetesCalculator.calculate(
+                    carbs, protein, fat, fiber, averageGi, profile, time
+            );
+
+            if (calc.carbUnit() != null) totalCu = totalCu.add(calc.carbUnit().setScale(1, RoundingMode.HALF_UP));
+            if (calc.fatProteinUnit() != null) totalFpu = totalFpu.add(calc.fatProteinUnit().setScale(1, RoundingMode.HALF_UP));
+            if (calc.carbDose() != null) consumedCarbDose = consumedCarbDose.add(calc.carbDose().setScale(2, RoundingMode.HALF_UP));
+            if (calc.fatProteinDose() != null) consumedFatProteinDose = consumedFatProteinDose.add(calc.fatProteinDose().setScale(2, RoundingMode.HALF_UP));
+            if (calc.totalDose() != null) consumedBolusDose = consumedBolusDose.add(calc.totalDose().setScale(2, RoundingMode.HALF_UP));
         }
 
         BigDecimal estimatedTdd = null;

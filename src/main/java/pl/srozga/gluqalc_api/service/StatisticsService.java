@@ -26,6 +26,7 @@ import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -100,11 +101,6 @@ public class StatisticsService {
         BigDecimal sumProtein = BigDecimal.ZERO;
         BigDecimal sumFat = BigDecimal.ZERO;
         BigDecimal sumGlycemicLoad = BigDecimal.ZERO;
-        BigDecimal sumInsulinTotal = BigDecimal.ZERO;
-        BigDecimal sumInsulinCarb = BigDecimal.ZERO;
-        BigDecimal sumInsulinFatProtein = BigDecimal.ZERO;
-        BigDecimal sumWW = BigDecimal.ZERO;
-        BigDecimal sumWBT = BigDecimal.ZERO;
 
         LocalTime firstMeal = null;
         LocalTime lastMeal = null;
@@ -129,19 +125,61 @@ public class StatisticsService {
                 firstMeal = time;
             if (lastMeal == null || time.isAfter(lastMeal))
                 lastMeal = time;
+        }
 
-            DiabetesCalcDataDto calc = diabetesCalculator.calculateForMeal(entry, profile, entry.getConsumedAtTime());
+        BigDecimal sumInsulinTotal = BigDecimal.ZERO;
+        BigDecimal sumInsulinCarb = BigDecimal.ZERO;
+        BigDecimal sumInsulinFatProtein = BigDecimal.ZERO;
+        BigDecimal sumWW = BigDecimal.ZERO;
+        BigDecimal sumWBT = BigDecimal.ZERO;
 
-            sumInsulinTotal = sumInsulinTotal.add(calc.totalDose());
-            sumInsulinCarb = sumInsulinCarb.add(calc.carbDose());
-            sumInsulinFatProtein = sumInsulinFatProtein.add(calc.fatProteinDose());
-            sumWW = sumWW.add(calc.carbUnit());
-            sumWBT = sumWBT.add(calc.fatProteinUnit());
+        Map<UUID, List<MealEntry>> groupedByCategory = entries.stream()
+                .collect(Collectors.groupingBy(m -> m.getMealCategory().getId()));
+
+        for (List<MealEntry> categoryMeals : groupedByCategory.values()) {
+            if (categoryMeals.isEmpty()) continue;
+
+            BigDecimal catCarbs = BigDecimal.ZERO;
+            BigDecimal catProtein = BigDecimal.ZERO;
+            BigDecimal catFat = BigDecimal.ZERO;
+            BigDecimal catFiber = BigDecimal.ZERO;
+            BigDecimal weightedGiSum = BigDecimal.ZERO;
+            BigDecimal carbsWithGi = BigDecimal.ZERO;
+
+            for (MealEntry m : categoryMeals) {
+                BigDecimal c = defaultZero(m.getCarbohydrates());
+                catCarbs = catCarbs.add(c);
+                catProtein = catProtein.add(defaultZero(m.getProtein()));
+                catFat = catFat.add(defaultZero(m.getFat()));
+                catFiber = catFiber.add(defaultZero(m.getFiber()));
+
+                if (m.getGlycemicIndex() != null && c.compareTo(BigDecimal.ZERO) > 0) {
+                    weightedGiSum = weightedGiSum.add(c.multiply(BigDecimal.valueOf(m.getGlycemicIndex())));
+                    carbsWithGi = carbsWithGi.add(c);
+                }
+            }
+
+            BigDecimal averageGi = carbsWithGi.compareTo(BigDecimal.ZERO) > 0
+                    ? weightedGiSum.divide(carbsWithGi, 0, RoundingMode.HALF_UP)
+                    : null;
+
+            LocalTime time = categoryMeals.getFirst().getConsumedAtTime();
+
+            DiabetesCalcDataDto calc = diabetesCalculator.calculate(
+                    catCarbs, catProtein, catFat, catFiber, averageGi, profile, time
+            );
+
+            if (calc.totalDose() != null) sumInsulinTotal = sumInsulinTotal.add(calc.totalDose().setScale(2, RoundingMode.HALF_UP));
+            if (calc.carbDose() != null) sumInsulinCarb = sumInsulinCarb.add(calc.carbDose().setScale(2, RoundingMode.HALF_UP));
+            if (calc.fatProteinDose() != null) sumInsulinFatProtein = sumInsulinFatProtein.add(calc.fatProteinDose().setScale(2, RoundingMode.HALF_UP));
+            if (calc.carbUnit() != null) sumWW = sumWW.add(calc.carbUnit().setScale(1, RoundingMode.HALF_UP));
+            if (calc.fatProteinUnit() != null) sumWBT = sumWBT.add(calc.fatProteinUnit().setScale(1, RoundingMode.HALF_UP));
         }
 
         BigDecimal balance = sumKcal.subtract(goal);
-        BigDecimal avgInsulin = entries.isEmpty() ? BigDecimal.ZERO :
-                sumInsulinTotal.divide(BigDecimal.valueOf(entries.size()), 2, RoundingMode.HALF_UP);
+        BigDecimal avgInsulin = groupedByCategory.isEmpty() ? BigDecimal.ZERO :
+                sumInsulinTotal.divide(BigDecimal.valueOf(groupedByCategory.size()), 2, RoundingMode.HALF_UP);
+
         String macroRatio = calculateMacroRatio(sumKcal, sumProtein, sumFat, sumCarbs);
         String eatingWindow = formatEatingWindow(firstMeal, lastMeal);
 
@@ -198,16 +236,16 @@ public class StatisticsService {
         sb.append(row.date()).append(CSV_SEPARATOR)
                 .append(row.dayOfWeek()).append(CSV_SEPARATOR)
                 .append(row.mealsCount()).append(CSV_SEPARATOR)
-                .append(row.eatingWindow()).append(CSV_SEPARATOR) // String (np. "08:00 - 20:00")
+                .append(row.eatingWindow()).append(CSV_SEPARATOR)
                 .append(formatNum(row.kcalConsumed())).append(CSV_SEPARATOR)
                 .append(formatNum(row.kcalGoal())).append(CSV_SEPARATOR)
                 .append(formatNum(row.balance())).append(CSV_SEPARATOR)
                 .append(formatNum(row.proteinGrams())).append(CSV_SEPARATOR)
                 .append(formatNum(row.fatGrams())).append(CSV_SEPARATOR)
                 .append(formatNum(row.carbsGrams())).append(CSV_SEPARATOR)
-                .append(formatNum(row.sugarsGrams())).append(CSV_SEPARATOR) // NOWE
-                .append(formatNum(row.fiberGrams())).append(CSV_SEPARATOR)  // NOWE
-                .append(formatNum(row.glycemicLoad())).append(CSV_SEPARATOR)// NOWE
+                .append(formatNum(row.sugarsGrams())).append(CSV_SEPARATOR)
+                .append(formatNum(row.fiberGrams())).append(CSV_SEPARATOR)
+                .append(formatNum(row.glycemicLoad())).append(CSV_SEPARATOR)
                 .append(row.macroRatio()).append(CSV_SEPARATOR)
                 .append(formatNum(row.cu())).append(CSV_SEPARATOR)
                 .append(formatNum(row.fpu())).append(CSV_SEPARATOR)
