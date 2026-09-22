@@ -33,7 +33,7 @@ public class EmailService {
 
         setupCodeSection(context, "Your email verification code:", token, (int) EmailVerificationTokenService.TOKEN_EXPIRATION.toMinutes());
 
-        sendGenericEmail(to, "GluQalc - Email Verification Code", context);
+        sendGenericEmail(to, token + " - GluQalc Email Verification Code", context);
     }
 
     @Async
@@ -45,7 +45,7 @@ public class EmailService {
 
         setupCodeSection(context, "Your password reset code:", token, (int) EmailVerificationTokenService.TOKEN_EXPIRATION.toMinutes());
 
-        sendGenericEmail(to, "GluQalc - Password Reset Code", context);
+        sendGenericEmail(to, token + " - GluQalc Password Reset Code", context);
     }
 
     @Async
@@ -57,7 +57,7 @@ public class EmailService {
 
         setupCodeSection(context, "Your confirmation code:", token, (int) EmailVerificationTokenService.TOKEN_EXPIRATION.toMinutes());
 
-        sendGenericEmail(to, "GluQalc - Confirm Email Change", context);
+        sendGenericEmail(to, token + " - GluQalc Email Change Confirmation Code", context);
     }
 
     @Async
@@ -69,7 +69,7 @@ public class EmailService {
 
         setupCodeSection(context, "Your deletion confirmation code:", token, 15);
 
-        sendGenericEmail(to, "GluQalc - Account Deletion Request", context);
+        sendGenericEmail(to, token + " - GluQalc Account Deletion Code", context);
     }
 
     @Async
@@ -81,7 +81,7 @@ public class EmailService {
 
         setupAlertSection(context, alertMessage);
 
-        sendGenericEmail(to, "GluQalc - Security Alert", context);
+        sendGenericEmail(to, "GluQalc Security Alert", context);
     }
 
     @Async
@@ -94,7 +94,7 @@ public class EmailService {
         context.setVariable("showCode", false);
         context.setVariable("showAlert", false);
 
-        sendGenericEmail(to, "GluQalc - Account Deleted", context);
+        sendGenericEmail(to, "GluQalc Account Deleted", context);
     }
 
     private Context createBaseContext(String message, String footerMessage) {
@@ -127,15 +127,15 @@ public class EmailService {
 
             helper.setTo(to);
             helper.setSubject(subject);
-            helper.setFrom(emailFrom);
+            helper.setFrom(emailFrom, "GluQalc");
 
             helper.setText(htmlContent, true);
 
-            ClassPathResource logoImage = new ClassPathResource("static/logo.svg");
+            ClassPathResource logoImage = new ClassPathResource("static/logo.png");
             if (logoImage.exists())
                 helper.addInline("logoImage", logoImage);
             else
-                log.warn("Logo image not found at static/logo.svg");
+                log.warn("Logo image not found at static/logo.png");
 
             mailSender.send(mimeMessage);
             log.info("Sent email [{}] to {}", subject, to);
