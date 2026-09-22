@@ -78,6 +78,7 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/v1/reset-password/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/v1/consents", "/api/v1/consents/").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/system/ping").permitAll()
                                 .anyRequest().authenticated()
                 )
                 .sessionManagement(configurer -> configurer.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

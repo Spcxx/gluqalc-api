@@ -1,0 +1,19 @@
+package pl.srozga.gluqalc_api.controller;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@Tag(name = "09. System", description = "System health checks")
+@RestController
+@RequestMapping("/api/v1/system")
+public class SystemController {
+    @Operation(summary = "Health check", description = "Lightweight endpoint to check if the API is reachable.")
+    @GetMapping("/ping")
+    public ResponseEntity<Void> ping() {
+        return ResponseEntity.ok().build();
+    }
+}
