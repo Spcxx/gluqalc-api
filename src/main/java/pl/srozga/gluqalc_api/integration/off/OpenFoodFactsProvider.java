@@ -136,11 +136,11 @@ public class OpenFoodFactsProvider implements ProductProvider {
             packWeight = parseWeightFromQuantityString(p.quantity());
         }
         if (packWeight != null && packWeight.compareTo(BigDecimal.ZERO) > 0) {
-            portions.add(new ProductPortionDto(null, "1 pack", packWeight, null, true, null));
+            portions.add(new ProductPortionDto(null, "pack", packWeight, null, true, null));
         }
 
         if (p.servingQuantity() != null && p.servingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-            portions.add(new ProductPortionDto(null, "1 serving", p.servingQuantity(), null, true, null));
+            portions.add(new ProductPortionDto(null, "serving", p.servingQuantity(), null, true, null));
         }
 
         return new ProductDto(
