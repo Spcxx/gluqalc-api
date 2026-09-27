@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -19,7 +21,7 @@ CREATE TABLE user_roles (
 
 CREATE TABLE products (
     id UUID PRIMARY KEY,
-    barcode VARCHAR(255) UNIQUE,
+    barcode VARCHAR(255),
     name VARCHAR(255) NOT NULL,
     brand VARCHAR(255),
     energy_kcal NUMERIC(10, 2) NOT NULL,
@@ -41,6 +43,28 @@ CREATE TABLE products (
 );
 
 CREATE INDEX idx_products_name ON products(name);
+CREATE UNIQUE INDEX idx_products_barcode_active ON products(barcode) WHERE deleted = false;
+
+CREATE TABLE product_names (
+    id UUID PRIMARY KEY,
+    product_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    language_code VARCHAR(10) NOT NULL,
+    type VARCHAR(30) NOT NULL,
+    source VARCHAR(30) NOT NULL,
+    approved BOOLEAN NOT NULL DEFAULT FALSE,
+    created_by UUID,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+
+    CONSTRAINT fk_product_names_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    CONSTRAINT fk_product_names_user FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT uq_product_names_product_language_name UNIQUE (product_id, language_code, name)
+);
+
+CREATE INDEX idx_product_names_product_id ON product_names(product_id);
+CREATE INDEX idx_product_names_language_code ON product_names(language_code);
+CREATE INDEX idx_product_names_name ON product_names(name);
 
 CREATE TABLE product_portions (
     id UUID PRIMARY KEY,
@@ -165,12 +189,31 @@ CREATE TABLE user_profiles (
     insulin_sensitivity_factor VARCHAR(255),
     insulin_fat_protein_ratio VARCHAR(255),
     hourly_carb_ratio VARCHAR(2000),
+    insulin_delivery_method VARCHAR(255),
+    combined_insulin_calculation_method VARCHAR(255),
+    tdd_multiplier VARCHAR(255),
+    daily_basal_insulin VARCHAR(255),
 
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
 
     CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE user_profile_history (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    weight_in_kg VARCHAR(255),
+    height_in_cm VARCHAR(255),
+    body_fat_percentage VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
+
+    CONSTRAINT fk_user_profile_history_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_user_profile_history_user_id ON user_profile_history(user_id);
+CREATE INDEX idx_user_profile_history_created_at ON user_profile_history(created_at);
 
 CREATE TABLE device_sessions (
     id UUID PRIMARY KEY,
@@ -227,3 +270,43 @@ CREATE TABLE user_consents (
 
 CREATE INDEX idx_user_consents_user_id ON user_consents (user_id);
 CREATE INDEX idx_user_consents_definition_id ON user_consents (consent_definition_id);
+
+INSERT INTO consent_definitions (
+    id,
+    code,
+    version,
+    content,
+    required,
+    active,
+    created_at,
+    updated_at
+) VALUES (
+    '2d0b1d74-4d67-4ae6-9a9b-fd2c7d8a2c10',
+    'MEDICAL_DISCLAIMER',
+    '1.0.0',
+    'Medical Disclaimer
+
+This application is designed solely as a supportive informational and tracking tool for managing nutritional data, glucose records, and suggested insulin estimates. It is not a certified medical device and is not intended to replace clinical judgment.
+
+1. Not Medical Advice
+
+The calculations, nutritional insights, and dose estimates provided by this system do not constitute professional medical advice, diagnosis, or prescription.
+
+2. Independent Verification Required
+
+All bolus recommendations, carbohydrate ratios, and correction doses must be verified independently before administering medication. Factors such as physical activity, illness, stress, and individual metabolic variations cannot be fully accounted for by this software.
+
+3. Consult Healthcare Professionals
+
+Never alter your prescribed therapy, medication schedule, or target ranges without direct guidance from your physician or qualified diabetes care team.
+
+4. Emergency Situations
+
+This platform does not monitor acute clinical conditions or life-threatening events. In the event of severe hypoglycemia, hyperglycemia, or any medical emergency, seek immediate local emergency assistance.
+
+By tapping "Accept", you confirm that you have read, understood, and agreed to this disclaimer, and you assume full responsibility for verifying all dosing calculations before taking any clinical action.',
+    TRUE,
+    TRUE,
+    NOW(),
+    NOW()
+);
