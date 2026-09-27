@@ -79,11 +79,9 @@ public class ProductMapper {
         );
     }
 
-    public ProductResponse toResponse(ProductDto product, UserProfile profile) {
+    public ProductResponse toResponse(ProductDto product, UserProfile profile, LocalTime time) {
         List<ProductPortionDto> portions = nutritionMapper.addNutritionToPortions(product, product.portions());
-        LocalTime now = LocalTime.now();
-
-        InsulinDoseResponse baseInsulinDose = calculateInsulin(product.nutrition(), profile, now);
+        InsulinDoseResponse baseInsulinDose = calculateInsulin(product.nutrition(), profile, time);
 
         return new ProductResponse(
                 product.id(),
@@ -92,7 +90,7 @@ public class ProductMapper {
                 product.barcode(),
                 mapResponseNutrition(product.nutrition()),
                 baseInsulinDose,
-                mapPortions(portions, profile, now),
+                mapPortions(portions, profile, time),
                 mapNames(product.names(), false),
                 mapMetadata(product.metadata()),
                 product.source()

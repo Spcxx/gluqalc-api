@@ -31,25 +31,25 @@ public class MealCategoryService {
     private final UserProfileRepository userProfileRepository;
 
     @Transactional(readOnly = true)
-    public List<MealCategoryResponse> getAllCategories(AuthUser user) {
+    public List<MealCategoryResponse> getAllCategories(AuthUser user, LocalTime time) {
         UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
         return mealCategoryRepository.findAllByUserIdOrderBySortOrderAsc(user.id())
                 .stream()
-                .map(category -> mealLogMapper.toCategoryDto(category, Collections.emptyList(), profile, LocalTime.now()))
+                .map(category -> mealLogMapper.toCategoryDto(category, Collections.emptyList(), profile, time))
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public MealCategoryResponse getCategory(UUID categoryId, AuthUser user) {
+    public MealCategoryResponse getCategory(UUID categoryId, AuthUser user, LocalTime time) {
         MealCategory category = mealCategoryRepository.findByIdAndUserId(categoryId, user.id())
                 .orElseThrow(() -> new NotFoundException("Meal category not found"));
         UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
 
-        return mealLogMapper.toCategoryDto(category, Collections.emptyList(), profile, LocalTime.now());
+        return mealLogMapper.toCategoryDto(category, Collections.emptyList(), profile, time);
     }
 
     @Transactional
-    public MealCategoryResponse createCategory(AuthUser user, AddMealCategoryRequest request) {
+    public MealCategoryResponse createCategory(AuthUser user, AddMealCategoryRequest request, LocalTime time) {
         UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
         Integer maxOrder = mealCategoryRepository.findMaxSortOrder(user.id());
         int nextOrder = (maxOrder == null) ? 0 : maxOrder + 1;
@@ -63,7 +63,7 @@ public class MealCategoryService {
         MealCategory savedCategory = mealCategoryRepository.save(category);
         log.info("Created meal category with id {} for user {}", savedCategory.getId(), user.id());
 
-        return mealLogMapper.toCategoryDto(savedCategory, Collections.emptyList(), profile, LocalTime.now());
+        return mealLogMapper.toCategoryDto(savedCategory, Collections.emptyList(), profile, time);
     }
 
     @Transactional

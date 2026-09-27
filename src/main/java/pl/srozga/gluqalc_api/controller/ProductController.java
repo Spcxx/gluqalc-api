@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,6 +37,7 @@ import pl.srozga.gluqalc_api.repository.UserProfileRepository;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import pl.srozga.gluqalc_api.service.ProductService;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -62,7 +64,8 @@ public class ProductController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createProduct(
             @AuthenticationPrincipal AuthUser user,
-            @Valid @RequestBody AddProductRequest request
+            @Valid @RequestBody AddProductRequest request,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time
     ) {
         Object result;
         if (user.roles().contains(UserRole.ADMIN)) {
@@ -71,7 +74,8 @@ public class ProductController {
         } else {
             UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
             ProductDto productDto = productService.proposeProduct(user.id(), request);
-            result = productMapper.toResponse(productDto, profile);
+            LocalTime calcTime = time != null ? time : LocalTime.now();
+            result = productMapper.toResponse(productDto, profile, calcTime);
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -88,11 +92,13 @@ public class ProductController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getProduct(
             @AuthenticationPrincipal AuthUser user,
-            @PathVariable UUID id
+            @PathVariable UUID id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time
     ) {
         ProductDto productDto = productService.getProductSmart(id, user);
         UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
-        Object result = (user.roles().contains(UserRole.ADMIN)) ? productMapper.toAdminResponse(productDto) : productMapper.toResponse(productDto, profile);
+        LocalTime calcTime = time != null ? time : LocalTime.now();
+        Object result = (user.roles().contains(UserRole.ADMIN)) ? productMapper.toAdminResponse(productDto) : productMapper.toResponse(productDto, profile, calcTime);
 
         return ResponseEntity.ok(result);
     }
@@ -121,10 +127,11 @@ public class ProductController {
     })
     @GetMapping("/products/barcode/{barcode}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getProductByBarcode(@AuthenticationPrincipal AuthUser user, @PathVariable String barcode) {
+    public ResponseEntity<?> getProductByBarcode(@AuthenticationPrincipal AuthUser user, @PathVariable String barcode, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time) {
         ProductDto productDto = productService.getProductSmartByBarcode(barcode, user);
         UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
-        Object result = (user.roles().contains(UserRole.ADMIN)) ? productMapper.toAdminResponse(productDto) : productMapper.toResponse(productDto, profile);
+        LocalTime calcTime = time != null ? time : LocalTime.now();
+        Object result = (user.roles().contains(UserRole.ADMIN)) ? productMapper.toAdminResponse(productDto) : productMapper.toResponse(productDto, profile, calcTime);
 
         return ResponseEntity.ok(result);
     }
@@ -367,7 +374,8 @@ public class ProductController {
             @RequestParam(defaultValue = "false") boolean quick,
             @AuthenticationPrincipal AuthUser user,
             Locale locale,
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault(size = 20) Pageable pageable,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time
     ) {
         Page<ProductDto> result = productService.searchProductsUnified(q, quick, user, locale, pageable);
         if (user.roles().contains(UserRole.ADMIN)) {
@@ -375,7 +383,8 @@ public class ProductController {
             return ResponseEntity.ok(adminResponses);
         } else {
             UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
-            Page<ProductResponse> responses = result.map(product -> productMapper.toResponse(product, profile));
+            LocalTime calcTime = time != null ? time : LocalTime.now();
+            Page<ProductResponse> responses = result.map(product -> productMapper.toResponse(product, profile, calcTime));
             return ResponseEntity.ok(responses);
         }
     }
@@ -391,14 +400,16 @@ public class ProductController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> importProduct(
             @Valid @RequestBody ImportProductRequest request,
-            @AuthenticationPrincipal AuthUser user
+            @AuthenticationPrincipal AuthUser user,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time
     ) {
         ProductDto productDto = productService.importProduct(request.barcode(), user);
         if (user.roles().contains(UserRole.ADMIN))
             return ResponseEntity.ok(productMapper.toAdminResponse(productDto));
         else {
             UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
-            return ResponseEntity.ok(productMapper.toResponse(productDto, profile));
+            LocalTime calcTime = time != null ? time : LocalTime.now();
+            return ResponseEntity.ok(productMapper.toResponse(productDto, profile, calcTime));
         }
     }
 
@@ -410,11 +421,13 @@ public class ProductController {
     @GetMapping("/users/me/products")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ProductResponse>> getMyProducts(
-            @AuthenticationPrincipal AuthUser user
+            @AuthenticationPrincipal AuthUser user,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time
     ) {
         UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+        LocalTime calcTime = time != null ? time : LocalTime.now();
         List<ProductResponse> responses = productService.getMyProducts(user.id()).stream()
-                .map(product -> productMapper.toResponse(product, profile))
+                .map(product -> productMapper.toResponse(product, profile, calcTime))
                 .toList();
         return ResponseEntity.ok(responses);
     }

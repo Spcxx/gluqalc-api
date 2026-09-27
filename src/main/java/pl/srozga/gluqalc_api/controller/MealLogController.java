@@ -20,6 +20,7 @@ import pl.srozga.gluqalc_api.service.MealLogService;
 import pl.srozga.gluqalc_api.service.MealLogSummaryService;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,10 +42,12 @@ public class MealLogController {
     @PreAuthorize("isAuthenticated()")
     public List<MealCategoryResponse> getDailyLog(
             @AuthenticationPrincipal AuthUser user,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time
     ) {
         LocalDate targetDate = date != null ? date : LocalDate.now();
-        return mealLogService.getDailyLog(user, targetDate);
+        LocalTime targetTime = time != null ? time : LocalTime.now();
+        return mealLogService.getDailyLog(user, targetDate, targetTime);
     }
 
     @Operation(summary = "Add a meal entry", description = "Logs a product/food item to the user's daily log. Automatically calculates macronutrients and estimates insulin needs based on the user's health profile.")

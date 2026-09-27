@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,6 +17,7 @@ import pl.srozga.gluqalc_api.dto.response.MealCategoryResponse;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
 import pl.srozga.gluqalc_api.service.MealCategoryService;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,9 +36,11 @@ public class MealCategoryController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public List<MealCategoryResponse> getAllCategories(
-            @AuthenticationPrincipal AuthUser user
+            @AuthenticationPrincipal AuthUser user,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time
     ) {
-        return mealCategoryService.getAllCategories(user);
+        LocalTime calcTime = time != null ? time : LocalTime.now();
+        return mealCategoryService.getAllCategories(user, calcTime);
     }
 
     @Operation(summary = "Create a new category", description = "Creates a new meal category for the authenticated user. The sort order is automatically assigned to the end of the list.")
@@ -50,9 +54,11 @@ public class MealCategoryController {
     @ResponseStatus(HttpStatus.CREATED)
     public MealCategoryResponse createCategory(
             @AuthenticationPrincipal AuthUser user,
-            @Valid @RequestBody AddMealCategoryRequest request
+            @Valid @RequestBody AddMealCategoryRequest request,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time
     ) {
-        return mealCategoryService.createCategory(user, request);
+        LocalTime calcTime = time != null ? time : LocalTime.now();
+        return mealCategoryService.createCategory(user, request, calcTime);
     }
 
     @Operation(summary = "Get a specific category", description = "Retrieves the details of a specific meal category by its ID.")
@@ -66,9 +72,11 @@ public class MealCategoryController {
     @PreAuthorize("isAuthenticated()")
     public MealCategoryResponse getCategory(
             @AuthenticationPrincipal AuthUser user,
-            @PathVariable UUID id
+            @PathVariable UUID id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time
     ) {
-        return mealCategoryService.getCategory(id, user);
+        LocalTime calcTime = time != null ? time : LocalTime.now();
+        return mealCategoryService.getCategory(id, user, calcTime);
     }
 
     @Operation(summary = "Delete a category", description = "Deletes a specific meal category. This operation will fail if there are any meal entries associated with this category.")

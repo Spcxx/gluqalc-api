@@ -57,7 +57,7 @@ public class MealLogService {
     }
 
     @Transactional(readOnly = true)
-    public List<MealCategoryResponse> getDailyLog(AuthUser user, LocalDate date) {
+    public List<MealCategoryResponse> getDailyLog(AuthUser user, LocalDate date, LocalTime time) {
         UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
 
         List<MealCategory> categories = mealCategoryRepository.findAllByUserIdOrderBySortOrderAsc(user.id());
@@ -77,7 +77,8 @@ public class MealLogService {
                                 return mealLogMapper.toDto(entry, calcData);
                             }).toList();
 
-                    return mealLogMapper.toCategoryDto(category, entryResponses, profile, entryResponses.isEmpty() ? null : entryResponses.getFirst().consumptionTime());
+                    LocalTime categoryCalcTime = entryResponses.isEmpty() ? time : entryResponses.getFirst().consumptionTime();
+                    return mealLogMapper.toCategoryDto(category, entryResponses, profile, categoryCalcTime);
                 }).toList();
     }
 
@@ -112,7 +113,7 @@ public class MealLogService {
                 .userId(user.id())
                 .mealCategory(category)
                 .consumedAt(request.date())
-                .consumedAtTime(LocalTime.now())
+                .consumedAtTime(request.time())
                 .productId(product.id())
                 .productName(product.name())
                 .brand(product.brand())
