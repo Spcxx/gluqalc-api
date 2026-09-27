@@ -18,6 +18,7 @@ import pl.srozga.gluqalc_api.dto.response.UserProfileResponse;
 import pl.srozga.gluqalc_api.entity.User;
 import pl.srozga.gluqalc_api.entity.UserProfile;
 import pl.srozga.gluqalc_api.entity.UserProfileHistory;
+import pl.srozga.gluqalc_api.exception.DomainValidationException;
 import pl.srozga.gluqalc_api.exception.NotFoundException;
 import pl.srozga.gluqalc_api.repository.UserProfileHistoryRepository;
 import pl.srozga.gluqalc_api.repository.UserProfileRepository;
@@ -156,6 +157,40 @@ public class UserProfileService {
 
         log.info("Biometrics partially updated for user: {}", authUser.id());
         return mapToResponse(savedProfile);
+    }
+
+    @Transactional(readOnly = true)
+    public NutritionTargetsResponse calculateDraftTargets(AuthUser authUser, UpdateUserProfileRequest request) {
+        UserProfile profile = new UserProfile();
+        profile.setId(authUser.id());
+        profile.setGender(request.gender());
+        profile.setWeightInKg(request.weightInKg());
+        profile.setHeightInCm(request.heightInCm());
+        profile.setBirthDate(request.birthDate() != null ? request.birthDate().toString() : null);
+        profile.setPhysicalActivityLevel(request.physicalActivityLevel());
+        profile.setKcalGoalDifference(request.kcalGoalDifference());
+        profile.setBodyFatPercentage(request.bodyFatPercentage());
+        profile.setBmrMethod(request.bmrCalculationMethod());
+
+        if (request.macroStrategy() != null) {
+            try {
+                profile.setMacroStrategyJson(objectMapper.writeValueAsString(request.macroStrategy()));
+            } catch (JsonProcessingException ignored) {}
+        }
+
+        try {
+            UserCalcDataDto calcResult = nutritionCalculator.calculate(profile);
+            return new NutritionTargetsResponse(
+                    calcResult.bmr(),
+                    calcResult.tdee(),
+                    calcResult.dailyGoalKcal(),
+                    calcResult.dailyGoalProtein(),
+                    calcResult.dailyGoalFat(),
+                    calcResult.dailyGoalCarbs()
+            );
+        } catch (DomainValidationException e) {
+            throw new IllegalArgumentException(e.getMessage());
+        }
     }
 
     private BigDecimal getDailyGoalSafely(UserProfile profile) {

@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import pl.srozga.gluqalc_api.dto.request.UpdateBiometricsRequest;
 import pl.srozga.gluqalc_api.dto.request.UpdateUserProfileRequest;
+import pl.srozga.gluqalc_api.dto.response.NutritionTargetsResponse;
 import pl.srozga.gluqalc_api.dto.response.UserProfileHistoryResponse;
 import pl.srozga.gluqalc_api.dto.response.UserProfileResponse;
 import pl.srozga.gluqalc_api.security.principal.AuthUser;
@@ -79,5 +80,19 @@ public class UserProfileController {
             @Valid @RequestBody UpdateBiometricsRequest request
     ) {
         return userProfileService.updateBiometrics(user, request);
+    }
+
+    @Operation(summary = "Calculate profile targets", description = "Calculates BMR, TDEE, and macronutrient targets based on draft profile data without saving them.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successfully calculated targets"),
+            @ApiResponse(responseCode = "400", description = "Validation error (e.g. missing required fields)")
+    })
+    @PostMapping("/calculate")
+    @PreAuthorize("isAuthenticated()")
+    public NutritionTargetsResponse calculateProfileTargets(
+            @AuthenticationPrincipal AuthUser user,
+            @Valid @RequestBody UpdateUserProfileRequest request
+    ) {
+        return userProfileService.calculateDraftTargets(user, request);
     }
 }
