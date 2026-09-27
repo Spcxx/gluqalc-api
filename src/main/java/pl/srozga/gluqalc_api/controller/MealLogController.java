@@ -116,4 +116,20 @@ public class MealLogController {
         LocalDate targetDate = date != null ? date : LocalDate.now();
         return mealLogSummaryService.getDaySummary(user, targetDate);
     }
+
+    @Operation(summary = "Calculate draft meal entry", description = "Calculates macronutrients and estimates insulin needs for a meal draft based on the user's health profile without saving it to the database.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successfully calculated the draft meal entry"),
+            @ApiResponse(responseCode = "400", description = "Validation error (e.g., missing required fields)"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "404", description = "Not found: Product or product portion does not exist")
+    })
+    @PostMapping("/calculate")
+    @PreAuthorize("isAuthenticated()")
+    public MealEntryResponse calculateEntry(
+            @AuthenticationPrincipal AuthUser user,
+            @Valid @RequestBody AddMealEntryRequest request
+    ) {
+        return mealLogService.calculateDraftEntry(user, request);
+    }
 }

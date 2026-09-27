@@ -143,6 +143,56 @@ public class MealLogService {
         log.info("Deleted meal entry {} for user {}", entryId, user.id());
     }
 
+    @Transactional(readOnly = true)
+    public MealEntryResponse calculateDraftEntry(AuthUser user, AddMealEntryRequest request) {
+        UserProfile profile = userProfileRepository.findByUserId(user.id()).orElse(null);
+        mealCategoryRepository.findByIdAndUserId(request.mealCategoryId(), user.id())
+                .orElseThrow(() -> new NotFoundException("Meal category not found"));
+
+        ProductDto product = productService.getProductSmart(request.productId(), user);
+
+        BigDecimal finalWeightInGrams;
+        String snapshotPortionName = "g";
+        BigDecimal snapshotPortionUnitWeight;
+        BigDecimal snapshotPortionQuantity = request.quantity();
+
+        if (request.portionId() != null) {
+            ProductPortionDto portion = product.portions().stream()
+                    .filter(p -> p.id().equals(request.portionId()))
+                    .findFirst()
+                    .orElseThrow(() -> new NotFoundException("Product portion not found"));
+
+            snapshotPortionName = portion.name();
+            snapshotPortionUnitWeight = portion.weightInGrams();
+            finalWeightInGrams = snapshotPortionUnitWeight.multiply(snapshotPortionQuantity);
+        } else {
+            finalWeightInGrams = request.quantity();
+            snapshotPortionUnitWeight = BigDecimal.ONE;
+        }
+
+        MealEntry draftEntry = MealEntry.builder()
+                .id(UUID.randomUUID())
+                .userId(user.id())
+                .consumedAt(request.date())
+                .consumedAtTime(request.time())
+                .productId(product.id())
+                .productName(product.name())
+                .brand(product.brand())
+                .barcode(product.barcode())
+                .glycemicIndex(product.nutrition().glycemicIndex())
+                .portionId(request.portionId())
+                .portionName(snapshotPortionName)
+                .weightInGrams(finalWeightInGrams)
+                .portionUnitWeight(snapshotPortionUnitWeight)
+                .portionQuantity(snapshotPortionQuantity)
+                .build();
+
+        calculateAndSetMacros(draftEntry, product, finalWeightInGrams);
+
+        DiabetesCalcDataDto calcData = diabetesCalculator.calculateForMeal(draftEntry, profile, request.time());
+        return mealLogMapper.toDto(draftEntry, calcData);
+    }
+
     private void calculateAndSetMacros(MealEntry entry, ProductDto product, BigDecimal weight) {
         BigDecimal ratio = weight.divide(HUNDRED, MathContext.DECIMAL64);
 
